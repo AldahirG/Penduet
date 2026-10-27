@@ -119,3 +119,7 @@ Not done or not verified:
 ## Brand (2026-10-27, replica-brand)
 
 Named **Penduet**, new cobalt palette (0 AA failures in light and dark), favicon stand-in, voice guide, ten strings rewritten, sweep clean. Details and the checks that still need a person: `replica/brand.md`. The package scope, storage keys and socket subprotocol were renamed with it. Note: the dark tokens file was emptied by a mistake in my own script mid-run and rebuilt from the values shown earlier in the session plus the shared contrast pairs; the contrast check passes.
+
+## Launch material (2026-10-27, replica-launch)
+
+Landing page built into `/` (`Home.tsx`) with real screenshots from the running app (`scripts/capture-landing.mjs`); `replica/launch/` holds `landing.md`, `pricing.md`, `listing.json` (passes `listing.py`) and `launch-plan.md`. Five new browser tests for the landing page, including ones that fail on fake proof and on the original's name. Pricing research read two competitor pages and could not read two others; nothing is for sale and no billing is built. The store listing is a draft: the product is not in any store.

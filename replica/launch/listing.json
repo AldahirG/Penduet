@@ -1,0 +1,21 @@
+{
+  "avoid": [
+    "ArtWorkout",
+    "Art Workout",
+    "Artworkout",
+    "momwillbeproud"
+  ],
+  "app_store": {
+    "name": "Penduet: Draw Together",
+    "subtitle": "Draw with a friend, live",
+    "promotional_text": "Open a room, send the code, and draw on one canvas with someone you know. No bots, no ads, no energy meter.",
+    "description": "Penduet is for drawing with someone you know.\n\nOpen a room, send the six-character code, and you both draw on one canvas. You see each other's lines as they appear. The other person is always a real person who was given the code: no bots, no replays of someone else's drawing, no matching with strangers.\n\nHow it works\n1. Open a room.\n2. Send the code or the link.\n3. Draw. Free canvas, or pick a lesson and trace it together.\n\nWhat you get\n- Rooms for two, with a code or a link\n- Guided lessons with a dashed guide, a score for how close and how steady you were, and a retry\n- A free canvas with pen, eraser, colours, sizes and undo\n- Save your drawing as an image\n- Works with a finger, a pen or a mouse\n- No account needed: you start as a guest, and you can delete your data in Settings\n\nNo ads. No energy meter. No trial screen.\n\nA note about children: rooms are invite-only and there is no chat, but there are no parental controls or age checks yet, so a child should draw with an adult nearby.",
+    "keywords": "drawing,sketch,canvas,tracing,lessons,friends,doodle,collaborate,tablet,pencil,shared,room",
+    "whats_new": "First release. Open a room, send the code, and draw together."
+  },
+  "google_play": {
+    "title": "Penduet: Draw Together",
+    "short_description": "Open a room, send the code, and draw on one canvas with a friend.",
+    "full_description": "Penduet is for drawing with someone you know.\n\nOpen a room, send the six-character code, and you both draw on one canvas. You see each other's lines as they appear. The other person is always a real person who was given the code: no bots, no replays of someone else's drawing, no matching with strangers.\n\nHow it works\n1. Open a room.\n2. Send the code or the link.\n3. Draw. Free canvas, or pick a lesson and trace it together.\n\nWhat you get\n- Rooms for two, with a code or a link\n- Guided lessons with a dashed guide, a score for how close and how steady you were, and a retry\n- A free canvas with pen, eraser, colours, sizes and undo\n- Save your drawing as an image\n- Works with a finger, a pen or a mouse\n- No account needed: you start as a guest, and you can delete your data in Settings\n\nNo ads. No energy meter. No trial screen.\n\nA note about children: rooms are invite-only and there is no chat, but there are no parental controls or age checks yet, so a child should draw with an adult nearby."
+  }
+}
