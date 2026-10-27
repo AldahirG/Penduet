@@ -1,0 +1,51 @@
+feature,area,priority,original,clone,notes
+Guest identity (name + id) without sign-up,onboarding,must,unverified,yes,Anonymous sign-in; rename in Settings (S20) and it shows in rooms; delete my data. Recovers by itself from a stale or deleted guest session
+Solo drawing canvas with pressure-aware strokes,canvas,must,yes,yes,"S19: Pointer Events, coalesced events, pen pressure, palm rejection, 1000x1000 logical space, smooth curves. Not tried on a real tablet or pen"
+Brush colour and size,canvas,must,yes,yes,"S19 and S11: 10 named colours, size slider + S/M/L"
+Eraser and undo,canvas,must,yes,yes,"S19 and S11: eraser (2x size), undo own last stroke, clear with confirm"
+Create a room and get an invite code,multiplayer,must,yes,yes,S09 -> real Worker -> /room/CODE; demo mode (fake) when no Supabase configured
+Join a room with a code,multiplayer,must,yes,yes,"S09 code input, and the invite link /room/CODE joins automatically"
+Shared canvas with real-time strokes,multiplayer,must,yes,yes,"S11: optimistic local drawing, partner strokes live, tested with one browser + scripted partner and with ws clients"
+Two players per room,multiplayer,must,yes,yes,"third person gets a ""room is full"" screen"
+Rejoin and late-join sync,multiplayer,must,unverified,yes,reload and reconnect restore the drawing from the room snapshot; backoff reconnect; another tab takes over with a banner
+Guided lesson with staged steps (lines/shapes/details/colour),lessons,must,yes,partial,"S05/S06: staged steps with prompts, step bar, skip. Stages lines, shapes, details; no colour stage yet"
+Guide overlay for tracing,lessons,must,yes,yes,"Dashed guide + tolerance band + start dot; hit lines turn green, missed stay dashed in red after a check. No magnetic snapping (original has it since v1.14.11)"
+Per-stroke score: accuracy and smoothness,lessons,must,yes,partial,"Own algorithm, scored per step on all strokes drawn in it (coverage x precision, plus steadiness). Check on demand, not live per stroke. Needs playtesting with real people"
+Result screen with score and retry,lessons,must,yes,yes,"S07 ScoreCard per step with stars, hint text, Try again, Next step, Move on anyway; lesson summary at the end"
+Three starter lessons (own content),lessons,must,yes,yes,"Straight lines, First shapes, Happy sun: 12 steps, all drawn from scratch"
+Share link for a room,multiplayer,should,unverified,yes,/room/CODE opens and joins; Invite dialog and the room page have Copy code and Copy link
+Co-op lesson: both draw the same lesson,multiplayer,should,yes,yes,"Pick a lesson when starting a room (or ""Draw it with a friend"" on a lesson). Shared step, guide and result card; either person checks, retries or moves on; state survives reconnect. Strokes start in your seat colour"
+Invite a friend by username,social,should,yes,no,needs accounts
+Friends list and requests,social,should,yes,partial,"friendships + notifications tables, RLS and trigger tested. Username search function not written"
+Lobby with player list,multiplayer,should,yes,yes,"S10 merged into S11: chips for both seats with here/drawing/left, code + link while waiting"
+Live Session (same preselected lesson for all),multiplayer,should,yes,no,from search snippet of the changelog; confirm in app
+Daily lesson and streak,retention,should,yes,partial,daily_progress table + RLS only
+Daily goal and achievements,retention,should,yes,no,changelog 1.14.1
+Save drawings to a gallery,gallery,should,yes,partial,"artworks table, private png-only 5 MB bucket and RLS tested. No upload UI. Storage files are not removed by account deletion yet"
+Export artwork as image,gallery,should,yes,partial,"""Save as image"" PNG download on S19 and S11; no gallery"
+Dark mode,settings,should,yes,yes,Auto/Light/Dark switch in the header; follows the system by default. changelog 1.14.9
+Account sync across devices,accounts,should,yes,no,"needs email/Google linking: Supabase linkIdentity, not wired. See backend.md"
+Multiple languages,settings,should,yes,no,12 languages on the site; clone starts with 2
+Quick Play with strangers,multiplayer,could,yes,no,needs moderation and reporting first
+Chameleon hide-and-seek mode,multiplayer,could,yes,no,rules unknown; changelog 1.14.6 only
+Pixel drawing mode,canvas,could,yes,no,changelog 1.14.6
+Colour-mixing lessons,lessons,could,yes,no,changelog 1.14.16
+Energy system (free daily),monetisation,could,yes,no,rules unknown
+PRO subscription and paywall,monetisation,could,yes,partial,"subscriptions + webhook_events tables, client cannot write. No Stripe code: needs the owner Stripe test keys"
+Parent dashboard and time limits,safety,could,unverified,no,help center only; legal duties if kids
+Lesson authoring tool (click to draw a guide),content,could,no,no,not in the original's public surface; needed for content scale
+Licensed collections (e.g. Winx Club),content,could,yes,skip,licensed IP
+Their 75M-user network and community,growth,could,yes,skip,not rebuildable
+Creator/TikTok partnerships,growth,could,yes,skip,partner deals
+Proprietary stroke-analysis algorithm,lessons,could,yes,skip,write your own scoring
+Brand name logo mascot and marketing copy,brand,could,yes,skip,never reuse; see replica-brand
+Siri/Shortcuts and Screen Time blocking,platform,could,yes,skip,iOS-native; out of MVP
+Ad-based energy refill,monetisation,could,yes,skip,ad network and ads are out of MVP
+Store screenshots and app assets,assets,could,yes,skip,reference only; never shipped
+"Core is free: every lesson, room and tool, no ads, no energy, no trial wall",monetisation,must,no,yes,"Rule from replica-entrepreneur: 339 reviews on paywalls, 238 on ads, 182 on energy. True today; nothing built may move behind a paywall"
+"Rooms hold only real invited people (no bots, no replays)",multiplayer,must,no,yes,"about 20 reviews name bots, AI or replays as the partner. Say it on screen"
+One-click cancel and no trial that charges,monetisation,should,no,no,"73 billing reviews, lowest average rating (2.2). Applies to any PRO the clone gets: see replica-launch"
+Report and block a person in a room,safety,should,no,no,"user_reports table and RLS exist, no button. A review reports inappropriate drawings from strangers. Needed before Quick Play"
+"Lessons that teach an idea, and end with drawing without the guide",lessons,should,no,no,Google Play reviews: tracing teaches no basics. Content work
+Visible contact and feedback link,settings,should,no,no,"""We have no way to contact them."" Add to Settings"
+Streak that survives reinstall and cannot be lost by a bug,retention,could,no,no,"15 streak mentions, some about lost streaks; build with the server when streaks exist"

@@ -1,0 +1,13 @@
+# Copy to .dev.vars (gitignored) for `wrangler dev`. For a deployed Worker use `wrangler secret put NAME`.
+
+# Supabase project URL and the publishable (anon) key: Dashboard > Project Settings > API.
+# Never put the service_role key here. The Worker does not use it.
+SUPABASE_URL=
+SUPABASE_ANON_KEY=
+
+# Signs socket tickets. Generate with: node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
+TICKET_SECRET=
+
+# Optional. When set, guests must pass Cloudflare Turnstile to create a room.
+# Cloudflare publishes always-pass and always-fail test secrets for development.
+TURNSTILE_SECRET=

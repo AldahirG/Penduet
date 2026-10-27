@@ -1,0 +1,5 @@
+{
+  "avoid": ["ArtWorkout", "Art Workout", "Artworkout", "momwillbeproud"],
+  "domains": ["artworkout.app", "artworkout.com"],
+  "colors": ["#252222", "#fdf8f2", "#fdf9f3", "#e9f3ff", "#ffdbe9", "#cfe3fc"]
+}

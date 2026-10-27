@@ -1,0 +1,30 @@
+{
+  "name": "@penduet/realtime",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --port 8787",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.e2e.json",
+    "test": "vitest run --passWithNoTests",
+    "test:e2e": "vitest run --config vitest.e2e.config.ts",
+    "dev:local": "tsx e2e/devStack.ts",
+    "partner": "tsx e2e/partner.ts"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261026.1",
+    "@penduet/lessons": "workspace:^",
+    "@types/node": "^20.19.0",
+    "@types/ws": "^8",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5",
+    "wrangler": "^4.40.0",
+    "ws": "^8"
+  },
+  "dependencies": {
+    "@penduet/protocol": "workspace:^",
+    "zod": "^4.6.7"
+  }
+}

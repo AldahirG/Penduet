@@ -1,0 +1,24 @@
+{
+  "name": "penduet",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Co-op drawing app: shared canvas, invite codes, guided lessons.",
+  "scripts": {
+    "dev": "pnpm --parallel --filter @penduet/web --filter @penduet/realtime dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "tokens": "python replica/design/build_tokens.py && node scripts/sync-tokens.mjs",
+    "test:e2e": "pnpm --filter @penduet/realtime test:e2e",
+    "db:push": "npx supabase db push",
+    "dev:local": "pnpm --parallel -r dev:local",
+    "test:ui": "playwright test"
+  },
+  "engines": {
+    "node": ">=20.19"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
+    "@playwright/test": "^1.64.1"
+  }
+}

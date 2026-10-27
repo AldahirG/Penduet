@@ -1,0 +1,15 @@
+# Minimal Supabase CLI config. Run `npx supabase start` for a local stack, `npx supabase db push`
+# to apply supabase/migrations to the linked project.
+project_id = "penduet"
+
+[auth]
+# Guests get a real user id on first visit. Also switch this on in the hosted project:
+# Dashboard > Authentication > Sign In / Providers > Allow anonymous sign-ins.
+enable_anonymous_sign_ins = true
+enable_signup = true
+# Short-lived access tokens keep a stolen JWT useful for less time.
+jwt_expiry = 3600
+
+[db.seed]
+enabled = true
+sql_paths = ["./seed.sql"]

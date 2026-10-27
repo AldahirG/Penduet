@@ -1,0 +1,137 @@
+{
+  "_about": "DARK theme overrides: same role names as tokens.json, only the colour values change. canvas and ink stay light on purpose: the drawing paper is always paper, so a stroke looks the same to both players in any theme.",
+  "color": {
+    "bg": "#0f131b",
+    "surface": "#171c27",
+    "surface-raised": "#1f2531",
+    "border": "#2d3444",
+    "border-input": "#8a93a8",
+    "text": "#eef1f7",
+    "text-muted": "#a6aec0",
+    "accent": "#6a88ee",
+    "on-accent": "#0f131b",
+    "accent-soft": "#1e2850",
+    "accent-text": "#b6c4ff",
+    "danger": "#ff7b72",
+    "on-danger": "#0f131b",
+    "success": "#4cc38a",
+    "warning-soft": "#3a2f10",
+    "warning-text": "#f5c451",
+    "canvas": "#fdfcf9",
+    "ink": "#151a24",
+    "guide": "#5d6a86",
+    "player-1": "#c2410c",
+    "player-2": "#0b7285",
+    "scrim": "rgba(0, 0, 0, 0.6)"
+  },
+  "pairs": [
+    [
+      "text",
+      "bg"
+    ],
+    [
+      "text",
+      "surface"
+    ],
+    [
+      "text",
+      "surface-raised"
+    ],
+    [
+      "text",
+      "accent-soft"
+    ],
+    [
+      "text-muted",
+      "bg"
+    ],
+    [
+      "text-muted",
+      "surface"
+    ],
+    [
+      "on-accent",
+      "accent"
+    ],
+    [
+      "on-danger",
+      "danger"
+    ],
+    [
+      "accent",
+      "bg"
+    ],
+    [
+      "accent",
+      "surface"
+    ],
+    [
+      "accent-text",
+      "accent-soft"
+    ],
+    [
+      "danger",
+      "bg"
+    ],
+    [
+      "danger",
+      "surface"
+    ],
+    [
+      "success",
+      "bg"
+    ],
+    [
+      "success",
+      "surface"
+    ],
+    [
+      "warning-text",
+      "warning-soft"
+    ],
+    [
+      "ink",
+      "canvas"
+    ],
+    [
+      "border-input",
+      "bg",
+      "ui"
+    ],
+    [
+      "border-input",
+      "surface",
+      "ui"
+    ],
+    [
+      "accent",
+      "bg",
+      "ui"
+    ],
+    [
+      "accent",
+      "surface",
+      "ui"
+    ],
+    [
+      "accent",
+      "canvas",
+      "ui"
+    ],
+    [
+      "guide",
+      "canvas",
+      "ui"
+    ],
+    [
+      "player-1",
+      "canvas",
+      "ui"
+    ],
+    [
+      "player-2",
+      "canvas",
+      "ui"
+    ]
+  ]
+}

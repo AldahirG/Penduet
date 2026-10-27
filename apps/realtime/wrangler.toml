@@ -1,0 +1,26 @@
+name = "penduet-realtime"
+main = "src/index.ts"
+compatibility_date = "2025-06-01"
+
+# One Durable Object per room: the single authority that orders strokes (see replica/architecture.md).
+# A second, tiny one per rate-limit key counts requests in a fixed window.
+[[durable_objects.bindings]]
+name = "ROOM"
+class_name = "Room"
+
+[[durable_objects.bindings]]
+name = "LIMITER"
+class_name = "Limiter"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Room"]
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["Limiter"]
+
+# Not secret. Secrets and per-developer values live in .dev.vars (local) and `wrangler secret put`
+# (deployed). See .dev.vars.example for the full list.
+[vars]
+ALLOWED_ORIGINS = "http://localhost:5173,http://127.0.0.1:5173,http://[::1]:5173"

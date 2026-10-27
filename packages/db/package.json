@@ -1,0 +1,17 @@
+{
+  "name": "@penduet/db",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Tests for supabase/migrations: room functions, row level security, cleanup jobs.",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.3.0",
+    "@types/node": "^20.19.0",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
+  }
+}
