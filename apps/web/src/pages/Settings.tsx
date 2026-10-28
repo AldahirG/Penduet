@@ -117,7 +117,7 @@ function SettingsForm() {
         </Button>
       </form>
 
-      <section aria-labelledby="data-title" className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-5">
+      <section aria-labelledby="data-title" className="flex flex-col gap-3 paper p-5">
         <h2 id="data-title" className="font-display text-lg font-semibold">
           Your data
         </h2>

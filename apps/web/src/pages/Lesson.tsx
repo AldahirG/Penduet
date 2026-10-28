@@ -135,7 +135,7 @@ function LessonRun({ lesson }: { lesson: LessonData }) {
           {lesson.title}
         </h1>
         <p className="text-lg text-muted">{lesson.summary}</p>
-        <dl className="grid grid-cols-3 gap-3 rounded-lg border border-line bg-surface p-4 text-sm">
+        <dl className="grid grid-cols-3 gap-3 paper p-4 text-sm">
           <div>
             <dt className="text-muted">Steps</dt>
             <dd className="font-semibold">{total}</dd>

@@ -14,10 +14,10 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variants: Record<ButtonVariant, string> = {
-  primary: 'bg-accent text-on-accent hover:brightness-110',
-  secondary: 'border-line bg-surface text-fg hover:bg-line',
+  primary: 'bg-accent text-on-accent shadow-card hover:-translate-y-0.5 hover:shadow-lift hover:brightness-110',
+  secondary: 'border-line bg-raised text-fg shadow-card hover:-translate-y-0.5 hover:bg-surface hover:shadow-lift',
   ghost: 'bg-transparent text-accent-text hover:bg-accent-soft',
-  danger: 'bg-danger text-on-danger hover:brightness-110',
+  danger: 'bg-danger text-on-danger shadow-card hover:brightness-110',
 }
 
 // sm is 36px tall; the ::after pseudo-element extends the hit area to the 44px minimum.
@@ -30,8 +30,8 @@ const sizes: Record<ButtonSize, string> = {
 /** Shared by Button and ButtonLink so a link that looks like a button is still a real link. */
 export function buttonClasses(variant: ButtonVariant = 'primary', size: ButtonSize = 'md', extra?: string): string {
   return cn(
-    'inline-flex min-w-touch items-center justify-center gap-2 rounded-md border border-transparent font-semibold',
-    'transition duration-fast ease-out active:translate-y-px',
+    'inline-flex min-w-touch items-center justify-center gap-2 rounded-pill border border-transparent font-bold',
+    'transition duration-fast ease-out active:translate-y-0 active:scale-[0.97] active:shadow-none',
     'disabled:cursor-not-allowed disabled:opacity-45',
     variants[variant],
     sizes[size],

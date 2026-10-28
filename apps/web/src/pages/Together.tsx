@@ -68,9 +68,9 @@ export function Together() {
 
   return (
     <div className="flex max-w-3xl flex-col gap-6">
-      <h1 className="font-display text-xl font-bold">Draw together</h1>
+      <h1 className="text-xl font-bold sm:text-display">Draw together</h1>
       <div className="grid gap-6 md:grid-cols-2">
-        <section aria-labelledby="create-title" className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-6">
+        <section aria-labelledby="create-title" className="flex flex-col gap-4 paper p-6">
           <h2 id="create-title" className="font-display text-lg font-semibold">
             Start a room
           </h2>
@@ -115,7 +115,7 @@ export function Together() {
           </Button>
         </section>
 
-        <section aria-labelledby="join-title" className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-6">
+        <section aria-labelledby="join-title" className="flex flex-col gap-4 paper p-6">
           <h2 id="join-title" className="font-display text-lg font-semibold">
             Join with a code
           </h2>

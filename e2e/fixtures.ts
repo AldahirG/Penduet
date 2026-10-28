@@ -50,7 +50,7 @@ export const test = base.extend<Fixtures>({
 
     await use({
       async open(origin = ORIGIN_A, opts = {}) {
-        const context = await browser.newContext({ baseURL: origin, ...(opts.viewport ? { viewport: opts.viewport } : {}) })
+        const context = await browser.newContext({ baseURL: origin, reducedMotion: 'reduce', ...(opts.viewport ? { viewport: opts.viewport } : {}) })
         contexts.push(context)
         // Remember every WebSocket the page opens, so a test can cut the connection like a bad network would.
         await context.addInitScript(() => {

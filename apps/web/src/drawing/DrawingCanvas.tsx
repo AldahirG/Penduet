@@ -187,7 +187,7 @@ export function DrawingCanvas({
       onLostPointerCapture={onPointerEnd}
       onContextMenu={(e) => e.preventDefault()}
       className={cn(
-        'aspect-square w-full touch-none select-none rounded-lg border border-line bg-canvas',
+        'aspect-square w-full touch-none select-none rounded-lg border border-line bg-canvas shadow-canvas',
         disabled ? 'cursor-not-allowed opacity-70' : tool === 'eraser' ? 'cursor-cell' : 'cursor-crosshair',
         className,
       )}

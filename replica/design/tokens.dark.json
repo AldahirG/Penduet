@@ -1,137 +1,61 @@
 {
-  "_about": "DARK theme overrides: same role names as tokens.json, only the colour values change. canvas and ink stay light on purpose: the drawing paper is always paper, so a stroke looks the same to both players in any theme.",
+  "_about": "DARK theme overrides ('night studio'): same role names as tokens.json, only the colour values change. canvas and ink stay light on purpose: the drawing paper is always paper, so a stroke looks the same to both players in any theme.",
   "color": {
-    "bg": "#0f131b",
-    "surface": "#171c27",
-    "surface-raised": "#1f2531",
-    "border": "#2d3444",
-    "border-input": "#8a93a8",
-    "text": "#eef1f7",
-    "text-muted": "#a6aec0",
-    "accent": "#6a88ee",
-    "on-accent": "#0f131b",
-    "accent-soft": "#1e2850",
-    "accent-text": "#b6c4ff",
-    "danger": "#ff7b72",
-    "on-danger": "#0f131b",
-    "success": "#4cc38a",
-    "warning-soft": "#3a2f10",
+    "bg": "#1a1511",
+    "surface": "#241d17",
+    "surface-raised": "#2f261e",
+    "border": "#443829",
+    "border-input": "#a39484",
+    "text": "#f6eee2",
+    "text-muted": "#bfb2a0",
+    "accent": "#6f82ec",
+    "on-accent": "#14110d",
+    "accent-soft": "#2a2f5c",
+    "accent-text": "#c5cdff",
+    "danger": "#ff8a7c",
+    "on-danger": "#14110d",
+    "success": "#55c78f",
+    "warning-soft": "#3d2f0f",
     "warning-text": "#f5c451",
     "canvas": "#fdfcf9",
     "ink": "#151a24",
     "guide": "#5d6a86",
     "player-1": "#c2410c",
     "player-2": "#0b7285",
-    "scrim": "rgba(0, 0, 0, 0.6)"
+    "paint-red": "#ee6a4c",
+    "paint-yellow": "#f6c453",
+    "paint-green": "#4cb68b",
+    "paint-pink": "#ec8db1",
+    "scrim": "rgba(0, 0, 0, 0.62)"
   },
   "pairs": [
-    [
-      "text",
-      "bg"
-    ],
-    [
-      "text",
-      "surface"
-    ],
-    [
-      "text",
-      "surface-raised"
-    ],
-    [
-      "text",
-      "accent-soft"
-    ],
-    [
-      "text-muted",
-      "bg"
-    ],
-    [
-      "text-muted",
-      "surface"
-    ],
-    [
-      "on-accent",
-      "accent"
-    ],
-    [
-      "on-danger",
-      "danger"
-    ],
-    [
-      "accent",
-      "bg"
-    ],
-    [
-      "accent",
-      "surface"
-    ],
-    [
-      "accent-text",
-      "accent-soft"
-    ],
-    [
-      "danger",
-      "bg"
-    ],
-    [
-      "danger",
-      "surface"
-    ],
-    [
-      "success",
-      "bg"
-    ],
-    [
-      "success",
-      "surface"
-    ],
-    [
-      "warning-text",
-      "warning-soft"
-    ],
-    [
-      "ink",
-      "canvas"
-    ],
-    [
-      "border-input",
-      "bg",
-      "ui"
-    ],
-    [
-      "border-input",
-      "surface",
-      "ui"
-    ],
-    [
-      "accent",
-      "bg",
-      "ui"
-    ],
-    [
-      "accent",
-      "surface",
-      "ui"
-    ],
-    [
-      "accent",
-      "canvas",
-      "ui"
-    ],
-    [
-      "guide",
-      "canvas",
-      "ui"
-    ],
-    [
-      "player-1",
-      "canvas",
-      "ui"
-    ],
-    [
-      "player-2",
-      "canvas",
-      "ui"
-    ]
+    ["text", "bg"],
+    ["text", "surface"],
+    ["text", "surface-raised"],
+    ["text", "accent-soft"],
+    ["text-muted", "bg"],
+    ["text-muted", "surface"],
+    ["text-muted", "surface-raised"],
+    ["on-accent", "accent"],
+    ["on-danger", "danger"],
+    ["accent", "bg"],
+    ["accent", "surface"],
+    ["accent-text", "bg"],
+    ["accent-text", "surface"],
+    ["accent-text", "accent-soft"],
+    ["danger", "bg"],
+    ["danger", "surface"],
+    ["success", "bg"],
+    ["success", "surface"],
+    ["warning-text", "warning-soft"],
+    ["ink", "canvas"],
+    ["border-input", "bg", "ui"],
+    ["border-input", "surface", "ui"],
+    ["accent", "bg", "ui"],
+    ["accent", "surface", "ui"],
+    ["accent", "canvas", "ui"],
+    ["guide", "canvas", "ui"],
+    ["player-1", "canvas", "ui"],
+    ["player-2", "canvas", "ui"]
   ]
 }

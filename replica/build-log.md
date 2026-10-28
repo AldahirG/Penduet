@@ -145,3 +145,14 @@ A third game, from the owner's idea: a split screen where each person draws half
 - Shape helpers moved from `content.ts` into `packages/lessons/src/shapes.ts` so the lessons and the pictures share them.
 - Tests added: 12 picture-content cases, 8 Worker rule cases, 5 client socket cases, 3 Worker end-to-end cases, 4 browser cases and the axe and phone checks.
 - Not tried: two real people finishing a picture; whether the guide is too strong or too weak; the pictures were drawn by guesswork and only checked by eye in one screenshot. There is no score for this game. Easy next steps: a "how well do the halves match" score (the guide and `scoreStep` are already there), pictures that are not symmetric (two people each draw the other half of a different thing), and a vertical split option.
+
+## Atelier redesign (2026-10-28)
+
+A new look, "atelier": warm paper, oil-paint colours, serif headlines and motion that means something. Branch `develop`.
+
+- Tokens: warm paper neutrals (light) and a warm night-studio dark theme; ultramarine accent; five `paint-*` colours for decoration only (never text). Header height stays 56px and the contrast checker reports 0 AA failures in both themes. Fonts are Fraunces (headlines) and Nunito (text), self-hosted through fontsource, replacing Manrope and Inter.
+- Shell: sticky translucent header with the sun mark and a painted underline on the current page. On a phone a bottom tab bar with icons and a pill on the current tab, clear of the home indicator (safe-area padding).
+- Lessons: each card shows the whole lesson as a small painted sketch (all step guides in turn) that redraws on hover, a theme colour, difficulty dots, a progress bar and theme filter chips. Cards are a compact row on a phone and a tall card from 640px up.
+- Home: brush-underlined headline, drifting paint blobs, a tilted framed picture, icon tiles, a paint-yellow price band and an accordion FAQ.
+- Motion: entrance rise and pop, lift on hover, press scale, star pop, page fade. Transform and opacity only, and all of it stops under `prefers-reduced-motion`. Playwright runs with reduced motion on, so half-faded elements do not trip the axe contrast check.
+- Not done: `public/landing/*.png` still show the old blue look (retake them); the room page itself is only re-coloured, not re-laid-out; no real-device check of the bottom bar or the animations.

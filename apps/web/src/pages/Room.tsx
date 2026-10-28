@@ -185,7 +185,7 @@ function LiveRoom({ code }: { code: string }) {
       {status === 'gone' ? <ConnectionBanner kind="room-expired" /> : null}
 
       {status === 'ended' ? (
-        <div className="flex flex-col items-start gap-3 rounded-lg border border-line bg-surface p-4">
+        <div className="flex flex-col items-start gap-3 paper p-4">
           <h2 className="font-display text-lg font-semibold">The room has closed</h2>
           <p className="text-muted">The host ended it. Your drawing is still below, so save it before you leave.</p>
           {me ? (

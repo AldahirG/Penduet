@@ -23,6 +23,8 @@ export default defineConfig({
     channel: process.env.PW_CHANNEL ?? 'chrome',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
+    // The app's entrance animations are off in tests: a half-faded element reads as low contrast to axe.
+    reducedMotion: 'reduce',
   },
   webServer: {
     command: 'pnpm dev:local',

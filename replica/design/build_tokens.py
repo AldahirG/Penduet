@@ -36,6 +36,10 @@ TW_COLOR = {
     "guide": "guide",
     "player-1": "player-1",
     "player-2": "player-2",
+    "paint-red": "paint-red",
+    "paint-yellow": "paint-yellow",
+    "paint-green": "paint-green",
+    "paint-pink": "paint-pink",
     "scrim": "scrim",
 }
 

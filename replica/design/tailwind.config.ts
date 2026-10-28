@@ -30,6 +30,10 @@ export default {
         'guide': 'var(--color-guide)',
         'player-1': 'var(--color-player-1)',
         'player-2': 'var(--color-player-2)',
+        'paint-red': 'var(--color-paint-red)',
+        'paint-yellow': 'var(--color-paint-yellow)',
+        'paint-green': 'var(--color-paint-green)',
+        'paint-pink': 'var(--color-paint-pink)',
         'scrim': 'var(--color-scrim)'
       },
       fontFamily: {
@@ -66,6 +70,7 @@ export default {
       },
       boxShadow: {
         'card': 'var(--shadow-card)',
+        'lift': 'var(--shadow-lift)',
         'pop': 'var(--shadow-pop)',
         'canvas': 'var(--shadow-canvas)'
       },

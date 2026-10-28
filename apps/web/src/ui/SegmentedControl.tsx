@@ -19,16 +19,16 @@ export interface SegmentedControlProps<T extends string> {
 export function SegmentedControl<T extends string>({ label, options, value, onChange, className }: SegmentedControlProps<T>) {
   const name = useId()
   return (
-    <div role="radiogroup" aria-label={label} className={cn('inline-flex rounded-md border border-line bg-surface p-1', className)}>
+    <div role="radiogroup" aria-label={label} className={cn('inline-flex rounded-pill border border-line bg-surface p-1', className)}>
       {options.map((opt) => {
         const selected = opt.value === value
         return (
           <label
             key={opt.value}
             className={cn(
-              'inline-flex min-h-touch min-w-touch cursor-pointer items-center justify-center rounded-sm px-3 text-sm font-semibold',
+              'inline-flex min-h-touch min-w-touch cursor-pointer items-center justify-center rounded-pill px-3 text-sm font-bold',
               'transition duration-fast ease-out has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent',
-              selected ? 'bg-raised text-fg shadow-card' : 'text-muted hover:text-fg',
+              selected ? 'bg-accent text-on-accent shadow-card' : 'text-muted hover:text-fg',
             )}
           >
             <input
