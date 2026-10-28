@@ -23,6 +23,7 @@ export function useRoomSession(code: string): RoomSession {
     peerDrawing: false,
     lesson: null,
     game: null,
+    skew: 0,
   })
   const [isHost, setIsHost] = useState(false)
   const hostRef = useRef(setIsHost)

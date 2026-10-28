@@ -14,4 +14,6 @@ export interface Env {
   ALLOWED_ORIGINS: string
   /** Cloudflare Turnstile secret. When set, guests must send a valid token to create a room. */
   TURNSTILE_SECRET?: string
+  /** Draw and guess runs at this fraction of its normal pace (0.02 to 1). Only for tests; leave it unset in production. */
+  GAME_SPEED?: string
 }

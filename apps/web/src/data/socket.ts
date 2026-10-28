@@ -36,6 +36,8 @@ export interface RoomState {
   lesson: LessonState | null
   /** The game this room is playing (a topic, or pass the pen) and where it stands. Null in a free room or a lesson. */
   game: GameState | null
+  /** The room's clock minus this device's, in ms. Deadlines in `game` are on the room's clock; take this off to get this device's. */
+  skew: number
 }
 
 export interface RoomSocketDeps {
@@ -56,7 +58,7 @@ const PEER_DRAWING_MS = 700
 const BACKOFF_BASE_MS = 500
 const BACKOFF_MAX_MS = 10_000
 
-const initial: RoomState = { status: 'connecting', you: null, peer: null, peerLeft: false, peerDrawing: false, lesson: null, game: null }
+const initial: RoomState = { status: 'connecting', you: null, peer: null, peerLeft: false, peerDrawing: false, lesson: null, game: null, skew: 0 }
 
 /**
  * One person's connection to one room. Drawing is optimistic: the canvas updates at once and the
@@ -75,6 +77,7 @@ export class RoomSocket {
   private flushTimer: ReturnType<typeof setTimeout> | undefined
   private drawingTimer: ReturnType<typeof setTimeout> | undefined
   private pending = new Map<string, Point[]>()
+  private lastGuessAt = 0
   private readonly WS: typeof WebSocket
 
   constructor(private deps: RoomSocketDeps) {
@@ -188,8 +191,19 @@ export class RoomSocket {
       case 'welcome':
         this.attempts = 0
         this.deps.board.load(msg.strokes, msg.open)
-        this.set({ status: 'live', you: msg.you, peer: msg.peer, peerLeft: false, lesson: msg.lesson, game: msg.game ?? null })
+        this.set({
+          status: 'live',
+          you: msg.you,
+          peer: msg.peer,
+          peerLeft: false,
+          lesson: msg.lesson,
+          game: msg.game ?? null,
+          ...(msg.now !== undefined ? { skew: msg.now - Date.now() } : {}),
+        })
         return
+      case 'game':
+        // Draw and guess: the room moved the game on. It sends each person only what they may see.
+        return this.set({ game: msg.game, skew: msg.now - Date.now() })
       case 'turn':
         if (this.state.game?.kind === 'turns') this.set({ game: { kind: 'turns', turn: msg.slot } })
         return
@@ -203,6 +217,8 @@ export class RoomSocket {
         if (msg.code === 'room_full') this.set({ status: 'full' })
         // Out of turn: what is on this screen no longer matches the room. Take its snapshot again.
         if (msg.code === 'not_your_turn') this.connect()
+        // Draw and guess: a stroke or an answer came too late (the canvas had just closed). A late answer changes nothing on screen.
+        if (msg.code === 'not_open' && Date.now() - this.lastGuessAt > 1500) this.connect()
         return // rate_limited, bad_message: nothing useful to show
       case 'event': {
         const b = msg.body
@@ -308,6 +324,12 @@ export class RoomSocket {
   /** Ask for another topic. `after` is the one you are looking at, so two people asking at once change it once. */
   sendTopicSet(topic: number, after: number): void {
     this.send({ type: 'topic_set', topic, after })
+  }
+
+  /** Draw and guess: your answer for the open window. The room decides whether it counts, and tells both people. */
+  sendGuess(text: string): void {
+    this.lastGuessAt = Date.now()
+    this.send({ type: 'guess', text })
   }
 
   /** Ask for another two-halves picture. `after` is the one you are looking at. */

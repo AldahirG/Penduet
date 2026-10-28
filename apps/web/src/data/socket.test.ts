@@ -492,3 +492,69 @@ describe('two halves', () => {
     expect(board.snapshot()[0]!.points.map((p) => p[0])).toEqual([500, 700])
   })
 })
+
+describe('draw and guess', () => {
+  const guessState = (over: Record<string, unknown> = {}) => ({
+    kind: 'guess' as const,
+    phase: 'draw' as const,
+    round: 1,
+    drawer: 1 as const,
+    interval: 0,
+    deadline: 5000,
+    wordId: 3,
+    score: 0,
+    played: 0,
+    won: 0,
+    last: null,
+    result: null,
+    ...over,
+  })
+
+  it('takes the game and the room clock from the welcome', async () => {
+    vi.setSystemTime(10_000)
+    await connected(welcome({ peer: PEER, game: guessState(), now: 12_500 }))
+    expect(last().game).toMatchObject({ kind: 'guess', phase: 'draw', wordId: 3 })
+    expect(last().skew).toBe(2500)
+  })
+
+  it('follows each move of the game, and keeps the clock up to date', async () => {
+    vi.setSystemTime(10_000)
+    await connected(welcome({ peer: PEER, game: guessState({ phase: 'waiting', deadline: null, wordId: null }), now: 10_000 }))
+    vi.setSystemTime(11_000)
+    current().push({ type: 'game', game: guessState({ phase: 'answer', deadline: 16_000, wordId: null }), now: 11_300 })
+    expect(last().game).toMatchObject({ phase: 'answer', deadline: 16_000 })
+    expect(last().skew).toBe(300)
+  })
+
+  it('sends your answer', async () => {
+    await connected(welcome({ peer: PEER, game: guessState({ phase: 'answer' }), now: Date.now() }))
+    sock.sendGuess('a cat')
+    expect(current().frames()).toContainEqual({ type: 'guess', text: 'a cat' })
+  })
+
+  it('reloads the room when a stroke arrives after the canvas closed, but not for a late answer', async () => {
+    await connected(welcome({ peer: PEER, game: guessState(), now: Date.now() }))
+    const before = FakeSocket.all.length
+    sock.sendGuess('late')
+    current().push({ type: 'error', code: 'not_open' })
+    await flush()
+    await flush()
+    expect(FakeSocket.all.length).toBe(before) // an answer that missed its window changes nothing
+
+    vi.advanceTimersByTime(5000)
+    current().push({ type: 'error', code: 'not_open' })
+    await flush()
+    await flush()
+    expect(FakeSocket.all.length).toBe(before + 1)
+  })
+
+  it('shows what the drawer draws, and the clear that starts the next round', async () => {
+    await connected(welcome({ peer: PEER, game: guessState({ drawer: 2 }), now: Date.now() }))
+    current().push({ type: 'event', seq: 1, from: 'peer', body: { type: 'stroke_start', ...meta, id: 'peer-stroke-1' } })
+    current().push({ type: 'event', seq: 2, from: 'peer', body: { type: 'stroke_pts', id: 'peer-stroke-1', pts: [[10, 10, 0.5], [20, 20, 0.5]] } })
+    current().push({ type: 'event', seq: 3, from: 'peer', body: { type: 'stroke_end', id: 'peer-stroke-1' } })
+    expect(board.strokeCount).toBe(1)
+    current().push({ type: 'event', seq: 4, from: 'server', body: { type: 'clear' } })
+    expect(board.strokeCount).toBe(0)
+  })
+})

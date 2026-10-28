@@ -146,6 +146,25 @@
   }
 }
 
+@keyframes start-flash {
+  0% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  25% {
+    opacity: 1;
+    transform: scale(1.12);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.05);
+  }
+}
+
 @keyframes star-pop {
   0% {
     transform: scale(0.4) rotate(-20deg);
@@ -181,6 +200,9 @@
 }
 .spin-slow {
   animation: spin-slow 60s linear infinite;
+}
+.start-flash {
+  animation: start-flash 900ms var(--motion-ease) forwards;
 }
 .star-pop {
   animation: star-pop 420ms var(--motion-ease) both;

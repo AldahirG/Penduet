@@ -1,6 +1,7 @@
 import { findLesson, halfSubjects, topics } from '@penduet/lessons'
 import { CANVAS_SIZE } from '@penduet/protocol'
 import type { ClientMessage, GameKind, GameState, LessonState, Point, Slot, Stroke } from '@penduet/protocol'
+import { canDraw, newGuessGame, type GuessGame } from './guessGame'
 
 // The rules of a room's stroke log, with no I/O so they can be tested without a Durable Object.
 // room.ts feeds messages in and carries out the result: broadcast, persist, reply.
@@ -14,12 +15,15 @@ export const LIMITS = {
   maxPointsPerSecond: 3000,
 }
 
+/** A room's game as the room keeps it: draw and guess carries its secret word and a little memory. */
+export type StoredGame = Exclude<GameState, { kind: 'guess' }> | GuessGame
+
 export interface RoomData {
   /** Last sequence number handed out. */
   seq: number
   lesson: LessonState | null
   /** What a topic or pass-the-pen room is playing. Null in a free room or a lesson. */
-  game: GameState | null
+  game: StoredGame | null
   /** Committed strokes in the order they ended. */
   strokes: Stroke[]
   /** Strokes between stroke_start and stroke_end, keyed by `${authorId}:${id}`. Not persisted. */
@@ -40,7 +44,7 @@ export interface Outcome {
   /** Pass-the-pen: whose turn it is now, to tell everyone after the event. Only set when it may have changed. */
   turn?: Slot
   /** Refused: send this error code to the sender only. */
-  refused?: 'bad_message' | 'rate_limited' | 'not_your_turn'
+  refused?: 'bad_message' | 'rate_limited' | 'not_your_turn' | 'not_open'
 }
 
 /** What the rules of pass-the-pen need to know about the room around a message. */
@@ -65,10 +69,11 @@ export const committedKey = (seq: number, authorId: string, id: string) =>
 export const newLesson = (slug: string): LessonState => ({ slug, step: 0, from: 0, result: null, results: [] })
 
 /** A room made for a game starts in its first state: a topic picked at random, or the host to draw first. */
-export function newGame(kind: GameKind, random: () => number = Math.random): GameState | null {
+export function newGame(kind: GameKind, random: () => number = Math.random): StoredGame | null {
   if (kind === 'topic') return { kind: 'topic', topic: Math.floor(random() * topics.length) }
   if (kind === 'turns') return { kind: 'turns', turn: 1 }
   if (kind === 'halves') return { kind: 'halves', subject: Math.floor(random() * halfSubjects.length) }
+  if (kind === 'guess') return newGuessGame()
   return null
 }
 
@@ -91,6 +96,8 @@ export function applyClientMessage(data: RoomData, from: string, msg: ClientMess
       if (data.open.has(key)) return { refused: 'bad_message' }
       // Pass the pen: only the person whose turn it is may start a stroke, unless that seat is empty.
       if (data.game?.kind === 'turns' && ctx && data.game.turn !== ctx.slot && ctx.present(data.game.turn)) return { refused: 'not_your_turn' }
+      // Draw and guess: only the drawer, and only while the canvas is open.
+      if (data.game?.kind === 'guess' && !(ctx && canDraw(data.game, ctx.slot))) return { refused: 'not_open' }
       data.open.set(key, {
         id: msg.id,
         authorId: from,
@@ -133,6 +140,7 @@ export function applyClientMessage(data: RoomData, from: string, msg: ClientMess
     }
 
     case 'undo': {
+      if (data.game?.kind === 'guess' && !(ctx && canDraw(data.game, ctx.slot))) return { refused: 'not_open' }
       // Removes the sender's own latest stroke. Everyone applies the same rule, so views agree.
       let i = data.strokes.length - 1
       while (i >= 0 && data.strokes[i]!.authorId !== from) i--
@@ -152,6 +160,7 @@ export function applyClientMessage(data: RoomData, from: string, msg: ClientMess
     }
 
     case 'clear': {
+      if (data.game?.kind === 'guess' && !(ctx && canDraw(data.game, ctx.slot))) return { refused: 'not_open' }
       data.strokes = []
       data.open.clear()
       return { event: stamp(data, from, msg), storage: { clearStrokes: true, put: { meta_seq: data.seq } } }
@@ -215,6 +224,9 @@ export function applyClientMessage(data: RoomData, from: string, msg: ClientMess
       return { event: stamp(data, from, msg), storage: { clearStrokes: true, put: { game, meta_seq: data.seq } } }
     }
 
+    case 'guess':
+      return { refused: 'bad_message' } // answers are judged against the clock, so the room handles them itself (room.ts)
+
     case 'step_result': {
       // A check only counts for the step the room is on. The result is kept so a reconnect sees it.
       const lesson = data.lesson
@@ -227,7 +239,7 @@ export function applyClientMessage(data: RoomData, from: string, msg: ClientMess
   }
 }
 
-function stamp(data: RoomData, from: string, body: ClientMessage) {
+export function stamp(data: RoomData, from: string, body: ClientMessage) {
   data.seq += 1
   return { seq: data.seq, from, body }
 }

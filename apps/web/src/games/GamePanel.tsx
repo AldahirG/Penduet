@@ -1,12 +1,17 @@
 import { useState } from 'react'
-import { halfGuide, halfSubjects, topics, type GuidePoint } from '@penduet/lessons'
+import { halfGuide, halfSubjects, topics, words, type GuidePoint } from '@penduet/lessons'
+import { GUESS } from '@penduet/protocol'
 import type { RoomSocket, RoomState } from '../data/socket'
 import type { Board } from '../drawing/board'
 import { useCanUndo } from '../drawing/hooks'
 import { Button, Modal } from '../ui'
+import { GuessPanel, type GuessControls } from './GuessPanel'
+
+/** The canvas shuts this long before the room's clock says so (see `drawUntil`). */
+const DRAW_MARGIN_MS = 300
 
 /** What a room that was made for a game needs from the page. Null in a free room or a lesson. */
-export type GameControls = TopicControls | TurnsControls | HalvesControls
+export type GameControls = TopicControls | TurnsControls | HalvesControls | GuessControls
 
 export interface TopicControls {
   kind: 'topic'
@@ -85,6 +90,36 @@ export function useGame(state: RoomState, board: Board, socket: RoomSocket): Gam
   }
 
   const hasPartner = state.peer !== null && !state.peerLeft
+
+  if (game.kind === 'guess') {
+    const seat = state.you.slot
+    const amDrawer = game.drawer === seat
+    return {
+      kind: 'guess',
+      phase: game.phase,
+      round: game.round,
+      interval: game.interval,
+      intervals: GUESS.intervals,
+      amDrawer,
+      seat,
+      drawerSeat: game.drawer,
+      myName: state.you.name,
+      peerName: state.peer?.name ?? 'Your partner',
+      hasPartner,
+      word: game.wordId === null ? null : (words[game.wordId] ?? null),
+      // The room sends deadlines on its own clock. This device's clock may be a little different.
+      deadline: game.deadline === null ? null : game.deadline - state.skew,
+      canDraw: game.phase === 'draw' && amDrawer,
+      drawUntil: game.deadline === null ? null : game.deadline - state.skew - DRAW_MARGIN_MS,
+      last: game.last,
+      result: game.result,
+      score: game.score,
+      played: game.played,
+      won: game.won,
+      submit: (text) => socket.sendGuess(text),
+    }
+  }
+
   const last = board.strokesSince(0).at(-1)
   return {
     kind: 'turns',
@@ -97,7 +132,7 @@ export function useGame(state: RoomState, board: Board, socket: RoomSocket): Gam
 }
 
 export function GamePanel({ g }: { g: GameControls }) {
-  return g.kind === 'topic' ? <TopicPanel g={g} /> : g.kind === 'halves' ? <HalvesPanel g={g} /> : <TurnsPanel g={g} />
+  return g.kind === 'topic' ? <TopicPanel g={g} /> : g.kind === 'halves' ? <HalvesPanel g={g} /> : g.kind === 'guess' ? <GuessPanel g={g} /> : <TurnsPanel g={g} />
 }
 
 function TopicPanel({ g }: { g: TopicControls }) {

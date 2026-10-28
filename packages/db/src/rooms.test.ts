@@ -47,6 +47,8 @@ describe('create_room', () => {
     expect((await game('turns')).game).toBe('turns')
     await db.exec('delete from rooms')
     expect((await game('halves')).game).toBe('halves')
+    await db.exec('delete from rooms')
+    expect((await game('guess')).game).toBe('guess')
   })
 
   it('refuses an unknown game, and a game together with a lesson', async () => {

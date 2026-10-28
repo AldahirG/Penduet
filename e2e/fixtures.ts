@@ -175,7 +175,7 @@ export async function createRoom(page: Page, lessonTitle?: string): Promise<stri
 }
 
 /** Creates a room for a game from the rooms hub, as a person would, and waits until live. Returns its code. */
-export async function createGameRoom(page: Page, game: 'Draw a topic together' | 'Pass the pen' | 'Two halves of one picture'): Promise<string> {
+export async function createGameRoom(page: Page, game: 'Draw a topic together' | 'Pass the pen' | 'Two halves of one picture' | 'Draw and guess'): Promise<string> {
   await page.goto('/together')
   await page.getByLabel('What will you draw?').selectOption({ label: `Game: ${game}` })
   await page.getByRole('button', { name: 'Create room' }).click()

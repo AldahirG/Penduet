@@ -13,6 +13,8 @@ export interface DrawingCanvasProps {
   size: number
   /** Blocks drawing, for example while a room is reconnecting. */
   disabled?: boolean
+  /** Fade the canvas while it is disabled (the default). Off where you must still see the drawing clearly, as the guesser does. */
+  dimWhenDisabled?: boolean
   /** Called as the person draws, for sending to a room. Local drawing happens either way. */
   onStrokeStart?: (meta: StrokeMeta) => void
   onStrokePoints?: (id: string, pts: Point[]) => void
@@ -46,6 +48,7 @@ export function DrawingCanvas({
   color,
   size,
   disabled = false,
+  dimWhenDisabled = true,
   region,
   onStrokeStart,
   onStrokePoints,
@@ -188,7 +191,7 @@ export function DrawingCanvas({
       onContextMenu={(e) => e.preventDefault()}
       className={cn(
         'aspect-square w-full touch-none select-none rounded-lg border border-line bg-canvas shadow-canvas',
-        disabled ? 'cursor-not-allowed opacity-70' : tool === 'eraser' ? 'cursor-cell' : 'cursor-crosshair',
+        disabled ? `cursor-not-allowed ${dimWhenDisabled ? 'opacity-70' : ''}` : tool === 'eraser' ? 'cursor-cell' : 'cursor-crosshair',
         className,
       )}
     />

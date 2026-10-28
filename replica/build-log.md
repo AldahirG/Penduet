@@ -161,3 +161,13 @@ A new look, "atelier": warm paper, oil-paint colours, serif headlines and motion
 - S10/S11 room restyled: yellow-highlighted code in the title, paper player chips with a ringed seat dot, easel-style tool rail (raised, rounded-xl), pop-in colour/size panel, tilted pastel code tiles, canvas in a paper frame (ring only, so its size and the header height are unchanged), rising banners.
 - `public/landing/room-*.png` retaken from the real app with `scripts/capture-landing.mjs` (now uses reduced motion and clicks the swatch label).
 - Tests: typecheck clean, web vitest passed, Playwright 140/141; the one failure (coop-lesson C-E2, two simultaneous Next clicks) passed on rerun alone and in its file: timing flake.
+
+## Draw and guess (2026-10-28)
+- New game kind `guess` (migration 0006, protocol, Worker, web). Two people: a wheel picks the drawer in round 1, then the pen alternates; the drawer gets a secret word and a Lucide icon as its reference picture; the other person never receives it until the round ends.
+- Round = 5 s countdown, then four 5 s bursts of drawing, each followed by a 5 s answer window with one try (so four tries). A wrong answer reopens the canvas at once; a right one ends the round (4, 3, 2 or 1 points by window); no answer in four windows loses it. Windows are an interpretation of the brief: its section 6 describes only three, its section 7 says four.
+- The Durable Object is the authority: `guessGame.ts` is the pure state machine (tested alone), the room's single alarm is shared with the idle clean-up (`nextWake`), answers and strokes are judged against the room clock, per-seat projection hides the word, and clients get `now` to line deadlines up (`skew`). Late strokes or answers get `not_open`.
+- A person who drops (reload, bad moment) has 8 s before the round is called off; a called-off round does not count and the same person draws next.
+- Web: side panel (word card, four-bar clock, score), wheel and countdown over the canvas, "Start!" flash, lock badge; on a phone the word, clock and answer box ride on the canvas and the panel sits under it. The canvas shuts 300 ms before the room does so the last points arrive.
+- Answers ignore case, accents, articles and spaces; accept aliases, a plural and one mistyped letter (never another word of the list).
+- Tests: protocol/lessons/realtime/web unit, Worker e2e (`GAME_SPEED` runs it at a fraction of the pace), Playwright desktop and phone (149 passing, incl. axe).
+- Not done: Spanish words and UI (the app is English only); sounds; a "next round now" button; a real-device test.

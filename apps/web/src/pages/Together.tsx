@@ -13,6 +13,11 @@ const games: { value: GameKind; label: string; hint: string }[] = [
   { value: 'topic', label: 'Draw a topic together', hint: 'You both get a prompt to draw on one canvas. No score.' },
   { value: 'turns', label: 'Pass the pen', hint: 'You take turns: one stroke each, back and forth.' },
   { value: 'halves', label: 'Two halves of one picture', hint: 'You each draw one half of a picture, and meet in the middle.' },
+  {
+    value: 'guess',
+    label: 'Draw and guess',
+    hint: 'One of you draws a secret word in four short bursts. After each burst the other has one try to guess it.',
+  },
 ]
 
 const joinErrors: Record<string, string> = {

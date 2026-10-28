@@ -1,7 +1,8 @@
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import WebSocket from 'ws'
-import { WS_SUBPROTOCOL, type ServerMessage } from '@penduet/protocol'
+import { words } from '@penduet/lessons'
+import { WS_SUBPROTOCOL, type GuessState, type ServerMessage } from '@penduet/protocol'
 import { startFakeSupabase, type FakeSupabase } from './fakeSupabase'
 
 // End to end: the real Worker and Durable Objects run in `wrangler dev` (workerd), the real SQL
@@ -127,6 +128,7 @@ beforeAll(async () => {
     '--var', 'SUPABASE_ANON_KEY:anon-key-for-tests',
     '--var', 'TICKET_SECRET:e2e-ticket-secret-e2e-ticket-secret',
     '--var', `ALLOWED_ORIGINS:${ORIGIN}`,
+    '--var', 'GAME_SPEED:0.15', // draw and guess at a seventh of its pace, so a round takes seconds
   ]
   worker = spawn(process.platform === 'win32' ? 'npx.cmd' : 'npx', args, { cwd: process.cwd(), shell: process.platform === 'win32' })
   worker.stdout?.on('data', (d) => (workerLog += d))
@@ -631,5 +633,136 @@ describe('two halves rooms', () => {
     client.send({ type: 'subject_set', subject: 1, after: 0 })
     await client.waitFor((m) => (m as any).type === 'error' && (m as any).code === 'bad_message')
     client.ws.close()
+  })
+})
+
+describe('draw and guess rooms', () => {
+  type Welcome = Extract<ServerMessage, { type: 'welcome' }>
+  type Game = Extract<ServerMessage, { type: 'game' }>
+
+  const stateOf = (c: Client, ok: (g: GuessState) => boolean, ms = 8000) =>
+    c.waitFor<Game>((m) => (m as any).type === 'game' && ok((m as any).game), ms).then((m) => m.game as GuessState)
+
+  async function guessRoom() {
+    const [host, guest] = [await supabase.signInAnonymously(), await supabase.signInAnonymously()]
+    const created = await api('/rooms', host, { game: 'guess' })
+    expect(created.status).toBe(201)
+    expect(created.json!.game).toBe('guess')
+    const code = created.json!.code as string
+    const hostClient = await connect(code, created.json!.ticket)
+    const hostWelcome = await hostClient.waitFor<Welcome>((m) => (m as { type: string }).type === 'welcome')
+    const guestClient = await connect(code, (await api('/rooms/join', guest, { code })).json!.ticket)
+    await guestClient.waitFor<Welcome>((m) => (m as { type: string }).type === 'welcome')
+    return { host, guest, code, hostClient, guestClient, hostWelcome }
+  }
+
+  /** The room once the wheel is spinning: who draws, and the two clients as drawer and guesser. */
+  async function startedRound() {
+    const room = await guessRoom()
+    const wheel = await stateOf(room.hostClient, (g) => g.phase === 'roulette')
+    const [drawer, guesser] = wheel.drawer === 1 ? [room.hostClient, room.guestClient] : [room.guestClient, room.hostClient]
+    return { ...room, wheel, drawer, guesser }
+  }
+
+  const errorOf = (c: Client, code: string, atLeast = 1) =>
+    c.waitFor((m) => (m as any).type === 'error' && (m as any).code === code && c.msgs.filter((x) => (x as any).type === 'error' && (x as any).code === code).length >= atLeast)
+
+  it('waits alone, starts the wheel when the second person comes, and tells both the same drawer', async () => {
+    const { hostClient, guestClient, hostWelcome } = await guessRoom()
+    expect(hostWelcome.game).toMatchObject({ kind: 'guess', phase: 'waiting', drawer: null, wordId: null, deadline: null })
+    expect(typeof hostWelcome.now).toBe('number')
+    const [a, b] = [await stateOf(hostClient, (g) => g.phase === 'roulette'), await stateOf(guestClient, (g) => g.phase === 'roulette')]
+    expect(a.drawer).toBe(b.drawer)
+    expect([1, 2]).toContain(a.drawer)
+    expect(a).toMatchObject({ round: 1, wordId: null })
+    expect(b.wordId).toBeNull()
+    hostClient.ws.close()
+    guestClient.ws.close()
+  })
+
+  it('shows the word to the drawer only, until the round is over', async () => {
+    const { drawer, guesser, hostClient, guestClient } = await startedRound()
+    const mine = await stateOf(drawer, (g) => g.phase === 'countdown')
+    expect(typeof mine.wordId).toBe('number')
+    const theirs = await stateOf(guesser, (g) => g.phase === 'countdown')
+    expect(theirs.wordId).toBeNull()
+    // nothing the guesser was sent gives the word away
+    await stateOf(guesser, (g) => g.phase === 'answer')
+    const seen = JSON.stringify(guesser.msgs).toLowerCase()
+    expect(seen).not.toContain(`"wordid":${mine.wordId}`)
+    expect(seen).not.toContain(`"${words[mine.wordId!]!.word}"`)
+    hostClient.ws.close()
+    guestClient.ws.close()
+  })
+
+  it('lets only the drawer draw, and only while the canvas is open; a wrong answer opens it again, a right one ends the round', async () => {
+    const { drawer, guesser, hostClient, guestClient } = await startedRound()
+    const mine = await stateOf(drawer, (g) => g.phase === 'draw')
+
+    for (const m of stroke('drawer-stroke-1')) drawer.send(m)
+    await eventOf(guesser, 'stroke_end') // the guesser sees it
+    guesser.send(stroke('guesser-stroke-1')[0])
+    await errorOf(guesser, 'not_open')
+
+    // an answer in the middle of drawing is too early
+    guesser.send({ type: 'guess', text: 'cat' })
+    await errorOf(guesser, 'not_open', 2)
+
+    await stateOf(guesser, (g) => g.phase === 'answer' && g.interval === 0)
+    drawer.send(stroke('drawer-stroke-2')[0]) // the canvas is closed
+    await errorOf(drawer, 'not_open')
+    drawer.send({ type: 'guess', text: 'cat' }) // and the drawer cannot answer
+    await errorOf(drawer, 'not_open', 2)
+
+    guesser.send({ type: 'guess', text: 'definitely not it' })
+    const back = await stateOf(drawer, (g) => g.phase === 'draw' && g.interval === 1)
+    expect(back.last).toEqual({ text: 'definitely not it', correct: false })
+    expect(back.wordId).toBe(mine.wordId)
+    expect((await stateOf(guesser, (g) => g.phase === 'draw' && g.interval === 1)).wordId).toBeNull()
+    guesser.send({ type: 'guess', text: 'one more' }) // one try per window
+    await errorOf(guesser, 'not_open', 3)
+
+    await stateOf(guesser, (g) => g.phase === 'answer' && g.interval === 1)
+    guesser.send({ type: 'guess', text: words[mine.wordId!]!.word.toUpperCase() })
+    for (const c of [drawer, guesser]) {
+      const done = await stateOf(c, (g) => g.phase === 'result')
+      expect(done).toMatchObject({ result: { won: true, interval: 1, points: 3 }, wordId: mine.wordId, score: 3, played: 1, won: 1 })
+    }
+    hostClient.ws.close()
+    guestClient.ws.close()
+  })
+
+  it('loses the round if no answer comes, then starts another with the other person drawing and a clean canvas', async () => {
+    const { drawer, guesser, wheel, hostClient, guestClient } = await startedRound()
+    await stateOf(drawer, (g) => g.phase === 'draw')
+    for (const m of stroke('drawer-stroke-1')) drawer.send(m)
+    const lost = await stateOf(guesser, (g) => g.phase === 'result', 15_000)
+    expect(lost).toMatchObject({ result: { won: false, interval: null, points: 0 }, played: 1, won: 0, score: 0 })
+    expect(typeof lost.wordId).toBe('number') // shown to the guesser at last
+
+    const next = await stateOf(guesser, (g) => g.round === 2 && g.phase === 'roulette', 15_000)
+    expect(next.drawer).toBe(wheel.drawer === 1 ? 2 : 1)
+    expect(next.wordId).toBeNull()
+    await guesser.waitFor((m) => (m as any).type === 'event' && (m as any).from === 'server' && (m as any).body?.type === 'clear')
+    hostClient.ws.close()
+    guestClient.ws.close()
+  })
+
+  it('calls a round off when someone leaves, and starts it again when they come back', async () => {
+    const { host, code, wheel, hostClient, guestClient } = await startedRound()
+    await stateOf(hostClient, (g) => g.phase === 'draw')
+    hostClient.ws.close()
+    const waiting = await stateOf(guestClient, (g) => g.phase === 'waiting')
+    expect(waiting).toMatchObject({ drawer: null, wordId: null, deadline: null, played: 0, round: 0 })
+
+    const back = await connect(code, (await api(`/rooms/${code}/ticket`, host)).json!.ticket)
+    const w = await back.waitFor<Welcome>((m) => (m as { type: string }).type === 'welcome')
+    expect((w.game as GuessState).kind).toBe('guess')
+    const at = guestClient.msgs.findIndex((m) => (m as any).type === 'game' && (m as any).game.phase === 'waiting')
+    const again = await guestClient.waitFor<Game>((m) => guestClient.msgs.indexOf(m) > at && (m as any).type === 'game' && (m as any).game.phase === 'roulette')
+    expect((again.game as GuessState).round).toBe(1) // the call-off did not use up round 1
+    expect((again.game as GuessState).drawer).toBe(wheel.drawer) // and the same person is up
+    back.ws.close()
+    guestClient.ws.close()
   })
 })

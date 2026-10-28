@@ -5,17 +5,20 @@ import {
   PONG_FRAME,
   WS_SUBPROTOCOL,
   clientMessageSchema,
+  type GameState,
   type Player,
   type ServerMessage,
   type Stroke,
 } from '@penduet/protocol'
 import type { Env } from './env'
+import { answer, nextWake, seatLeft, seatsFilled, tick, timingFor, visibleTo, type GuessGame, type Step, type Timing } from './guessGame'
 import {
   allowMessage,
   applyClientMessage,
   newGame,
   newLesson,
   newRoomData,
+  stamp,
   type RateWindow,
   type RoomData,
   type StorageOps,
@@ -57,6 +60,8 @@ export class Room extends DurableObject<Env> {
   private meta: Meta | null = null
   private slots: Record<string, 1 | 2> = {}
   private ended = false
+  /** When an idle room is cleaned up. The one alarm is set to the sooner of this and the game's next deadline. */
+  private idleAt = Date.now() + IDLE_MS
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env)
@@ -66,7 +71,7 @@ export class Room extends DurableObject<Env> {
   }
 
   private async load(): Promise<void> {
-    const stored = await this.ctx.storage.get<unknown>(['meta', 'slots', 'ended', 'lesson', 'game', 'meta_seq'])
+    const stored = await this.ctx.storage.get<unknown>(['meta', 'slots', 'ended', 'lesson', 'game', 'meta_seq', 'idle_at'])
     const meta = stored.get('meta') as Meta | undefined
     if (!meta) return
     this.meta = meta
@@ -74,6 +79,7 @@ export class Room extends DurableObject<Env> {
     this.ended = stored.get('ended') === true
     this.data.lesson = (stored.get('lesson') as RoomData['lesson'] | undefined) ?? null
     this.data.game = (stored.get('game') as RoomData['game'] | undefined) ?? null
+    this.idleAt = (stored.get('idle_at') as number | undefined) ?? Date.now() + IDLE_MS
     this.data.seq = ((stored.get('meta_seq') as number | undefined) ?? 0) + SEQ_GAP_AFTER_WAKE
     const strokes = await this.ctx.storage.list<Stroke>({ prefix: 's:' })
     this.data.strokes = [...strokes.values()]
@@ -121,6 +127,7 @@ export class Room extends DurableObject<Env> {
     }
 
     const slot = await this.slotFor(claims.sub)
+    await this.syncGame() // a deadline may have passed while the room slept
     const attachment: Attachment = {
       sid: crypto.randomUUID(),
       uid: claims.sub,
@@ -142,11 +149,15 @@ export class Room extends DurableObject<Env> {
       strokes: this.data.strokes,
       open: [...this.data.open.values()],
       lesson: this.data.lesson,
-      game: this.data.game,
+      game: this.gameFor(slot),
       lastSeq: this.data.seq,
+      now: Date.now(),
     })
     for (const ws of others) this.send(ws, { type: 'peer_joined', peer: you })
 
+    // Draw and guess starts by itself once both seats are taken.
+    const g = this.guess()
+    if (g && this.bothHere()) await this.applyStep(seatsFilled(g, Date.now(), this.timing()))
     await this.touch()
     return new Response(null, { status: 101, webSocket: client, headers: protocolHeader })
   }
@@ -170,6 +181,11 @@ export class Room extends DurableObject<Env> {
     if (!allowed) {
       this.send(ws, { type: 'error', code: 'rate_limited' })
       return
+    }
+
+    if (this.guess()) {
+      await this.syncGame() // judge this message against the room clock, not the browser clock
+      if (parsed.data.type === 'guess') return this.handleGuess(ws, att.slot, parsed.data.text)
     }
 
     const outcome = applyClientMessage(this.data, att.uid, parsed.data, this.turnContext(att.slot))
@@ -209,26 +225,33 @@ export class Room extends DurableObject<Env> {
   /** The host ended the room: tell everyone, close, and drop the log soon. */
   async end(): Promise<void> {
     this.ended = true
-    await this.ctx.storage.put('ended', true)
+    this.idleAt = Date.now() + ENDED_KEEP_MS
+    await this.ctx.storage.put({ ended: true, idle_at: this.idleAt })
     const frame = JSON.stringify({ type: 'room_ended' } satisfies ServerMessage)
     for (const ws of this.ctx.getWebSockets()) {
       ws.send(frame)
       ws.close(4004, 'room_ended')
     }
-    await this.ctx.storage.setAlarm(Date.now() + ENDED_KEEP_MS)
+    await this.schedule()
   }
 
-  /** 24 hours without a finished stroke or a new connection (or an hour after the end): delete everything. */
+  /**
+   * Two jobs share the room's one alarm. A game deadline (the next phase of draw and guess) moves the game on.
+   * Past 24 hours without a finished stroke or a new connection (or an hour after the end), everything is deleted.
+   */
   async alarm(): Promise<void> {
+    await this.syncGame()
+    if (Date.now() < this.idleAt) return this.schedule()
     if (!this.ended && this.ctx.getWebSockets().length > 0) {
-      await this.ctx.storage.setAlarm(Date.now() + IDLE_MS)
-      return
+      this.idleAt = Date.now() + IDLE_MS
+      return this.schedule()
     }
     await this.ctx.storage.deleteAll()
     this.data = newRoomData()
     this.meta = null
     this.slots = {}
     this.ended = false
+    this.idleAt = Date.now() + IDLE_MS
   }
 
   // ---- helpers ---------------------------------------------------------------
@@ -250,6 +273,77 @@ export class Room extends DurableObject<Env> {
   /** What pass-the-pen needs to know: the sender's seat, and whether a seat has someone in it. */
   private turnContext(slot: 1 | 2): TurnContext {
     return { slot, present: (s) => this.liveSockets().some((ws) => this.attachment(ws).slot === s) }
+  }
+
+  // ---- draw and guess ---------------------------------------------------------
+
+  private guess(): GuessGame | null {
+    return this.data.game?.kind === 'guess' ? this.data.game : null
+  }
+
+  /** What one seat may know of the game: in draw and guess the word goes only to the drawer. */
+  private gameFor(slot: 1 | 2): GameState | null {
+    const g = this.data.game
+    return g?.kind === 'guess' ? visibleTo(g, slot) : g
+  }
+
+  private timing(): Timing {
+    return timingFor(Number(this.env.GAME_SPEED ?? 1))
+  }
+
+  /** Both seats have someone in them. */
+  private bothHere(): boolean {
+    const seats = new Set(this.liveSockets().map((ws) => this.attachment(ws).slot))
+    return seats.size === 2
+  }
+
+  /** Moves the game on past any deadline that has passed. Cheap when nothing is due. */
+  private async syncGame(): Promise<void> {
+    const g = this.guess()
+    if (!g || this.ended) return
+    await this.applyStep(tick(g, Date.now(), this.timing(), this.bothHere()))
+  }
+
+  private async handleGuess(ws: WebSocket, slot: 1 | 2, text: string): Promise<void> {
+    const g = this.guess()
+    const result = g ? answer(g, slot, text, Date.now(), this.timing()) : ({ refused: 'bad_message' } as const)
+    if ('refused' in result) return this.send(ws, { type: 'error', code: result.refused })
+    await this.applyStep(result)
+  }
+
+  /** Carries out what a game step reported: close the canvas, wipe it, tell both people, store the state, set the alarm. */
+  private async applyStep(step: Step): Promise<void> {
+    const g = this.guess()
+    if (!g || !step.changed) return
+    if (step.lock) {
+      for (const uid of new Set([...this.data.open.values()].map((s) => s.authorId))) await this.finishOpenStrokes(uid, '')
+    }
+    if (step.clear) {
+      this.data.strokes = []
+      this.data.open.clear()
+      const frame = JSON.stringify({ type: 'event', ...stamp(this.data, 'server', { type: 'clear' }) } satisfies ServerMessage)
+      for (const ws of this.liveSockets()) ws.send(frame)
+      await this.persist({ clearStrokes: true, put: { meta_seq: this.data.seq } })
+    }
+    await this.ctx.storage.put('game', g)
+    this.broadcastGame()
+    await this.schedule()
+  }
+
+  private broadcastGame(): void {
+    const now = Date.now()
+    for (const ws of this.liveSockets()) {
+      const game = this.gameFor(this.attachment(ws).slot)
+      if (game) this.send(ws, { type: 'game', game, now })
+    }
+  }
+
+  /** The alarm goes off at the sooner of the game's next deadline and the idle clean-up. */
+  private async schedule(): Promise<void> {
+    const g = this.ended ? null : this.guess()
+    const wake = g ? nextWake(g) : null
+    const at = wake !== null ? Math.min(wake, this.idleAt) : this.idleAt
+    await this.ctx.storage.setAlarm(Math.max(at, Date.now()))
   }
 
   private broadcastTurn(slot: 1 | 2): void {
@@ -281,6 +375,13 @@ export class Room extends DurableObject<Env> {
     const frame = JSON.stringify({ type: 'peer_left', peerId: att.uid } satisfies ServerMessage)
     for (const other of this.liveSockets()) {
       if (this.attachment(other).sid !== att.sid) other.send(frame)
+    }
+    // A round of draw and guess needs both people. It waits a few seconds for the one who dropped (a reload), then it is called off.
+    const g = this.guess()
+    if (g && !this.ended) {
+      seatLeft(g, Date.now(), this.timing())
+      await this.ctx.storage.put('game', g)
+      await this.schedule()
     }
   }
 
@@ -327,6 +428,7 @@ export class Room extends DurableObject<Env> {
   }
 
   private async touch(): Promise<void> {
-    await this.ctx.storage.setAlarm(Date.now() + IDLE_MS)
+    this.idleAt = Date.now() + IDLE_MS
+    await this.schedule()
   }
 }

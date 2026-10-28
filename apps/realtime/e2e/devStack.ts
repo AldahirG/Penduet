@@ -27,6 +27,8 @@ const worker = spawn(
     '--var', 'TICKET_SECRET:local-dev-ticket-secret-local-dev-ticket-secret',
     // Optional: TURNSTILE_SECRET=1x0000000000000000000000000000000AA (Cloudflare's always-pass test secret)
     ...(process.env.TURNSTILE_SECRET ? ['--var', `TURNSTILE_SECRET:${process.env.TURNSTILE_SECRET}`] : []),
+    // Optional: GAME_SPEED=0.4 runs draw and guess at 40% of its pace (tests use it to keep rounds short).
+    ...(process.env.GAME_SPEED ? ['--var', `GAME_SPEED:${process.env.GAME_SPEED}`] : []),
   ],
   { stdio: 'inherit', shell },
 )

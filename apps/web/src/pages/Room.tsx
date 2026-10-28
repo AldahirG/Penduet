@@ -8,6 +8,7 @@ import { ROOMS_ARE_LIVE, RoomError, rooms } from '../data/rooms'
 import { useRoomSession } from '../data/useRoomSession'
 import { GamePanel, useGame } from '../games/GamePanel'
 import { HalvesOverlay } from '../games/HalvesOverlay'
+import { GuessCanvasOverlay } from '../games/GuessPanel'
 import { RoomLessonPanel, useRoomLesson } from '../lessons/RoomLesson'
 import { DrawingCanvas } from '../drawing/DrawingCanvas'
 import { CANVAS_BOX_ROOM } from '../drawing/layout'
@@ -85,7 +86,15 @@ function LiveRoom({ code }: { code: string }) {
   const rl = useRoomLesson(state, board, socket)
   const game = useGame(state, board, socket)
   const { status } = state
-  const canDraw = status === 'live' && me !== null && (!rl || rl.phase === 'draw') && (game?.kind !== 'turns' || game.myTurn)
+  // Draw and guess: the canvas shuts a moment before the room shuts it (see `drawUntil`), so wake up then.
+  const [, setTick] = useState(0)
+  const drawUntil = game?.kind === 'guess' && game.canDraw ? game.drawUntil : null
+  useEffect(() => {
+    if (drawUntil === null) return
+    const id = window.setTimeout(() => setTick((n) => n + 1), Math.max(0, drawUntil - Date.now()))
+    return () => window.clearTimeout(id)
+  }, [drawUntil])
+  const canDraw = status === 'live' && me !== null && (!rl || rl.phase === 'draw') && (game?.kind !== 'turns' || game.myTurn) && (game?.kind !== 'guess' || (game.canDraw && Date.now() < (game.drawUntil ?? 0)))
   const canUndo = rl ? rl.canUndo : game?.kind === 'turns' ? game.canUndo : canUndoAny
   // In pass the pen you can only take a stroke back while it is the latest, which is exactly when the pen is not yours.
   const undoEnabled = game?.kind === 'turns' ? canUndo && status === 'live' : canUndo && canDraw
@@ -218,7 +227,7 @@ function LiveRoom({ code }: { code: string }) {
               <RoomLessonPanel c={rl} state={state} />
             </div>
           ) : null}
-          {game && status !== 'connecting' ? (
+          {game && game.kind !== 'guess' && status !== 'connecting' ? (
             <div className="lg:col-start-2 lg:row-start-1">
               <GamePanel g={game} />
             </div>
@@ -255,6 +264,7 @@ function LiveRoom({ code }: { code: string }) {
                 color={color}
                 size={size}
                 disabled={!canDraw}
+                dimWhenDisabled={game?.kind !== 'guess'}
                 region={game?.kind === 'halves' ? game.region : undefined}
                 onEngine={onEngine}
                 onStrokeStart={(meta) => socket.sendStart(meta)}
@@ -269,15 +279,25 @@ function LiveRoom({ code }: { code: string }) {
                         ? `Shared canvas. ${game.myTurn ? 'It is your turn.' : `It is ${game.peerName}'s turn.`}`
                         : game?.kind === 'halves'
                           ? `Shared canvas, split down the middle. ${game.title}. You draw the ${game.side} half.`
-                          : undefined
+                          : game?.kind === 'guess'
+                            ? `Shared canvas for draw and guess. ${game.amDrawer ? 'You are drawing.' : `${game.peerName} is drawing.`}`
+                            : undefined
                 }
               />
               {game?.kind === 'halves' ? <HalvesOverlay guide={game.guide} side={game.side} /> : null}
+              {game?.kind === 'guess' ? <GuessCanvasOverlay g={game} /> : null}
               {rl && rl.step ? (
                 <GuideOverlay guide={rl.step.guide} tolerance={rl.step.tolerance} result={rl.phase === 'result' ? state.lesson?.result?.guideCoverage : undefined} />
               ) : null}
             </div>
           </div>
+
+          {/* Draw and guess: on a phone the panel (word, answer box, clock) sits under the canvas, so the canvas stays where it is. */}
+          {game?.kind === 'guess' && status !== 'connecting' ? (
+            <div className="lg:col-start-2 lg:row-start-1">
+              <GamePanel g={game} />
+            </div>
+          ) : null}
 
           <div className="flex flex-col gap-3 lg:col-start-2 lg:row-start-2">
             {rl && rl.phase === 'draw' && status === 'live' ? (

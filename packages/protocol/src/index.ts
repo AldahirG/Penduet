@@ -70,12 +70,64 @@ export type LessonState = z.infer<typeof lessonStateSchema>
 // `turns` (pass the pen): people alternate, one stroke each, and the room enforces whose turn it is.
 // `halves`: one symmetric picture, split down the middle. Seat 1 draws the left half and seat 2 the right
 // half, and the room keeps each person's lines on their own side.
+// `guess` (draw and guess): one person draws a secret word in short bursts, the other has one try after
+// each burst. The room runs the clock, owns the word and checks the answers; see GUESS below.
 
-export const gameKindSchema = z.enum(['free', 'topic', 'turns', 'halves'])
+export const gameKindSchema = z.enum(['free', 'topic', 'turns', 'halves', 'guess'])
 export type GameKind = z.infer<typeof gameKindSchema>
 
 const slotSchema = z.union([z.literal(1), z.literal(2)])
 export type Slot = z.infer<typeof slotSchema>
+
+/**
+ * Draw and guess, timings in milliseconds. A round is `intervals` bursts of drawing, each followed by one
+ * answer window. The numbers here are the defaults: the Worker may run them faster for tests (GAME_SPEED).
+ */
+export const GUESS = {
+  rouletteMs: 3500,
+  countdownMs: 5000,
+  drawMs: 5000,
+  answerMs: 5000,
+  resultMs: 8000,
+  /** How long a round waits for someone who dropped out (a page reload, a bad moment) before it is called off. */
+  graceMs: 8000,
+  intervals: 4,
+  maxAnswerLength: 40,
+} as const
+
+export const guessPhaseSchema = z.enum([
+  'waiting', // fewer than two people in the room: nothing runs
+  'roulette', // choosing who draws (the wheel is for show: the room already decided)
+  'countdown', // the drawer sees the word, nobody draws yet
+  'draw', // the drawer's canvas is open
+  'answer', // the canvas is locked and the guesser has one try
+  'result', // the round is over: the word is shown to both
+])
+export type GuessPhase = z.infer<typeof guessPhaseSchema>
+
+export const guessStateSchema = z.object({
+  kind: z.literal('guess'),
+  phase: guessPhaseSchema,
+  /** Rounds started so far in this room, counting the current one. */
+  round: z.number().int().min(0).max(99999),
+  /** The seat that draws this round. Null while waiting. */
+  drawer: z.union([z.literal(1), z.literal(2)]).nullable(),
+  /** Which burst of drawing (0 to intervals - 1) the round is in, or has just finished in an answer window. */
+  interval: z.number().int().min(0).max(9),
+  /** When the current phase ends, in ms on the room's clock (see `now` in `welcome` and `game`). Null while waiting. */
+  deadline: z.number().nullable(),
+  /** Index into the shared word list. Only the drawer gets it while the round runs; both get it in `result`. */
+  wordId: z.number().int().min(0).max(9999).nullable(),
+  /** Points won together, rounds played, rounds guessed. */
+  score: z.number().int().min(0),
+  played: z.number().int().min(0),
+  won: z.number().int().min(0),
+  /** The latest answer of this round, so the drawer can see what was tried. */
+  last: z.object({ text: z.string().max(GUESS.maxAnswerLength), correct: z.boolean() }).nullable(),
+  /** How the round ended, once it has. `interval` is the answer window it was guessed in. */
+  result: z.object({ won: z.boolean(), interval: z.number().int().min(0).max(9).nullable(), points: z.number().int().min(0) }).nullable(),
+})
+export type GuessState = z.infer<typeof guessStateSchema>
 
 export const gameStateSchema = z.discriminatedUnion('kind', [
   /** `topic` is an index into the shared list of topics. */
@@ -84,6 +136,7 @@ export const gameStateSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('turns'), turn: slotSchema }),
   /** `subject` is an index into the list of two-halves pictures. */
   z.object({ kind: z.literal('halves'), subject: z.number().int().min(0).max(999) }),
+  guessStateSchema,
 ])
 export type GameState = z.infer<typeof gameStateSchema>
 
@@ -122,6 +175,8 @@ export const clientMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('pass') }),
   /** Two-halves room: ask for another picture. Works like `topic_set`: `after` is the picture you were looking at, and the canvas is cleared. */
   z.object({ type: z.literal('subject_set'), subject: z.number().int().min(0).max(999), after: z.number().int().min(0).max(999) }),
+  /** Draw-and-guess room: your one answer for the open answer window. */
+  z.object({ type: z.literal('guess'), text: z.string().min(1).max(GUESS.maxAnswerLength) }),
 ])
 export type ClientMessage = z.infer<typeof clientMessageSchema>
 
@@ -145,7 +200,7 @@ export const strokeSchema = z.object({
 })
 export type Stroke = z.infer<typeof strokeSchema>
 
-export const serverErrorCodes = ['room_full', 'room_not_found', 'bad_message', 'rate_limited', 'unauthorized', 'not_your_turn'] as const
+export const serverErrorCodes = ['room_full', 'room_not_found', 'bad_message', 'rate_limited', 'unauthorized', 'not_your_turn', 'not_open'] as const
 
 /** Largest WebSocket text frame the room accepts. 64 points is about 2 KB, so this is generous. */
 export const MAX_MESSAGE_BYTES = 16 * 1024
@@ -162,6 +217,8 @@ export const serverMessageSchema = z.discriminatedUnion('type', [
     /** The game this room was made for, with its state. Absent or null for a free canvas or a lesson. */
     game: gameStateSchema.nullable().optional(),
     lastSeq: z.number().int().nonnegative(),
+    /** The room's clock in ms, to line up the deadlines in `game`. */
+    now: z.number().optional(),
   }),
   z.object({ type: z.literal('peer_joined'), peer: playerSchema }),
   z.object({ type: z.literal('peer_left'), peerId: z.string() }),
@@ -174,6 +231,8 @@ export const serverMessageSchema = z.discriminatedUnion('type', [
   }),
   // Pass-the-pen: whose turn it is now. Sent after every stroke, pass or undo that changes it.
   z.object({ type: z.literal('turn'), slot: slotSchema }),
+  // Draw and guess: the game moved on. Sent to each person with only what they may see (the word goes to the drawer).
+  z.object({ type: z.literal('game'), game: gameStateSchema, now: z.number() }),
   // The host ended the room. The server closes the socket right after sending this.
   z.object({ type: z.literal('room_ended') }),
   z.object({ type: z.literal('error'), code: z.enum(serverErrorCodes) }),

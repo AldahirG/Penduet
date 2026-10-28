@@ -10,7 +10,7 @@ This is a clean-room rebuild of the ideas behind an existing drawing-lesson app:
 - **Lessons** (`/lessons`): eleven lessons in seven themes (warm-up, shapes, nature, animals, objects, faces, scenes), each with a dashed guide, a score for accuracy and steadiness, stars and retries. To add one, see "Adding lessons and games" below.
 - **Rooms** (`/together`): create or join with a code or invite link. Two people, live strokes, reconnect, end room.
 - **Lessons together**: pick a lesson when you start a room. Both of you draw each step on a clean canvas, and a check, retry or next step changes both screens.
-- **Games** (pick one when you start a room): *Two halves of one picture* (eight symmetric pictures with a dashed guide; the first person draws the left half and the second the right half, and the room stops each line at the middle), *Draw a topic together* (a shared prompt, either of you can ask for a new one, no score) and *Pass the pen* (one stroke each, in turn; the room enforces whose turn it is).
+- **Games** (pick one when you start a room): *Two halves of one picture* (eight symmetric pictures with a dashed guide; the first person draws the left half and the second the right half, and the room stops each line at the middle), *Draw a topic together* (a shared prompt, either of you can ask for a new one, no score), *Pass the pen* (one stroke each, in turn; the room enforces whose turn it is) and *Draw and guess* (a wheel picks who draws a secret word, with a picture to look at, in four 5-second bursts; after each burst the canvas locks and the other person gets one try to guess it. The room runs the clock, holds the word and judges the answers).
 - **Settings** (`/settings`): your display name, and deleting your data.
 
 ## Run it
@@ -44,7 +44,7 @@ pnpm --filter @penduet/web build
 ## Adding lessons and games
 
 - **A lesson** is data: one object in `packages/lessons/src/content.ts` (slug, theme, steps with a prompt, a guide and a tolerance). It shows up in the list, in solo mode and in the room picker. `pnpm --filter @penduet/lessons test` checks every step: a clean trace must earn three stars, a shaky one must pass, and a drawing in the wrong place must not. Redeploy the Worker after adding one, because it bundles the lesson list.
-- **A topic** is a line in `packages/lessons/src/topics.ts`, and **a two-halves picture** is an entry in `packages/lessons/src/halves.ts` (its left half only: the right half is the mirror). Only add to the end of either list: rooms store the index.
+- **A topic** is a line in `packages/lessons/src/topics.ts`, and **a two-halves picture** is an entry in `packages/lessons/src/halves.ts` (its left half only: the right half is the mirror). Only add to the end of either list: rooms store the index. **A draw-and-guess word** is a row in `packages/lessons/src/words.ts` (the same rule), with the name of a Lucide icon as its picture; map new icons in `apps/web/src/games/wordIcons.ts`.
 - **A game** is a value of `rooms.game` (migration `supabase/migrations/0005_game_modes.sql`), a state in `packages/protocol` (`gameStateSchema`), its rules in `apps/realtime/src/roomLog.ts` (pure, with tests) and a panel in `apps/web/src/games/GamePanel.tsx`.
 
 ## Layout

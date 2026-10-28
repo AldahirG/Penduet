@@ -28,6 +28,8 @@ export default defineConfig({
   },
   webServer: {
     command: 'pnpm dev:local',
+    // Draw and guess at 40% of its pace, so a round in a test takes seconds, not minutes.
+    env: { GAME_SPEED: '0.4' },
     url: 'http://127.0.0.1:8787/health',
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,
