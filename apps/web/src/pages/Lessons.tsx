@@ -4,7 +4,7 @@ import { getProgress } from '../data/progress'
 import { ButtonLink, cn } from '../ui'
 import { usePageTitle } from '../usePageTitle'
 
-// A simple list of the starter lessons, with the best result on this device.
+// The lessons, each with its theme, and the best result on this device.
 export function Lessons() {
   usePageTitle('Lessons')
   const progress = getProgress()
@@ -21,6 +21,7 @@ export function Lessons() {
           const best = progress[l.slug]
           return (
             <li key={l.slug} className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-accent-text">{l.theme}</p>
               <h2 className="font-display text-lg font-semibold">{l.title}</h2>
               <p className="text-muted">{l.summary}</p>
               <p className="text-sm text-muted">

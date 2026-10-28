@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { TICKET_TTL_SECONDS } from '@penduet/protocol'
+import { TICKET_TTL_SECONDS, gameKindSchema } from '@penduet/protocol'
 
 // A ticket is a short-lived pass to one room's WebSocket: base64url(claims) + '.' + base64url(HMAC).
 // It travels in Sec-WebSocket-Protocol, not the URL, so it does not end up in access logs.
@@ -11,6 +11,7 @@ export const ticketClaimsSchema = z.object({
   code: z.string().length(6),
   cap: z.number().int().min(2).max(10),
   lesson: z.string().max(64).nullable(),
+  game: gameKindSchema.default('free'),
   exp: z.number().int(), // unix seconds
 })
 export type TicketClaims = z.infer<typeof ticketClaimsSchema>
@@ -40,7 +41,7 @@ function hmacKey(secret: string, usage: 'sign' | 'verify'): Promise<CryptoKey> {
 
 export async function signTicket(
   secret: string,
-  claims: Omit<TicketClaims, 'exp'>,
+  claims: Omit<z.input<typeof ticketClaimsSchema>, 'exp'>,
   nowSeconds = Math.floor(Date.now() / 1000),
 ): Promise<string> {
   const body = b64urlEncode(enc.encode(JSON.stringify({ ...claims, exp: nowSeconds + TICKET_TTL_SECONDS })))

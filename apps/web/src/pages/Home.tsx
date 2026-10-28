@@ -28,6 +28,10 @@ const features = [
     text: 'Trace a guide, get a score for how close and how steady you were, then try again. Do it side by side on one canvas.',
   },
   {
+    title: 'Games for two',
+    text: 'Not just lessons: draw half of a picture each and meet in the middle, get a topic to draw together, or pass the pen one stroke at a time.',
+  },
+  {
     title: 'Works with what you have',
     text: 'A mouse, a finger or a pen. A pen is nice, but you never need one.',
   },

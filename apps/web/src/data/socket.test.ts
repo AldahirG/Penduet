@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { findLesson } from '@penduet/lessons'
 import type { ServerMessage } from '@penduet/protocol'
 import { Board } from '../drawing/board'
 import { RoomError } from './rooms'
@@ -245,12 +246,22 @@ describe('a lesson in the room', () => {
     expect(last().lesson?.result).toBeNull()
   })
 
-  it('moves to the next step, remembering where its strokes begin', async () => {
+  it('moves to the next step on a clean canvas', async () => {
     await connected(welcome({ peer: PEER, lesson }))
     finished('peer', 'peer-stroke-1')
+    finished('peer', 'peer-stroke-2')
     ev(3, 'me', { type: 'lesson_set', slug: 'straight-lines', step: 1 })
-    expect(last().lesson).toMatchObject({ step: 1, from: 1, result: null })
-    expect(board.strokeCount).toBe(1) // the drawing stays
+    expect(last().lesson).toMatchObject({ step: 1, from: 0, result: null })
+    expect(board.strokeCount).toBe(0) // the last step's drawing is gone from this screen too
+  })
+
+  it('keeps the drawing when the lesson is finished', async () => {
+    const total = findLesson('straight-lines')!.steps.length
+    await connected(welcome({ peer: PEER, lesson: { ...lesson, step: total - 1 } }))
+    finished('peer', 'peer-last-1')
+    ev(3, 'me', { type: 'lesson_set', slug: 'straight-lines', step: total })
+    expect(last().lesson).toMatchObject({ step: total, from: 1 })
+    expect(board.strokeCount).toBe(1)
   })
 
   it('starting the same step again removes the strokes drawn in it, for the partner and for you', async () => {
@@ -343,5 +354,141 @@ describe('losing the connection', () => {
     sock.close()
     await vi.advanceTimersByTimeAsync(200)
     expect(FakeSocket.all).toHaveLength(0)
+  })
+})
+
+describe('games', () => {
+  const ev = (seq: number, from: string, body: Extract<ServerMessage, { type: 'event' }>['body']) =>
+    current().push({ type: 'event', seq, from, body })
+  const turns = (turn: 1 | 2) => welcome({ peer: PEER, game: { kind: 'turns', turn } })
+  const topic = (n: number) => welcome({ peer: PEER, game: { kind: 'topic', topic: n } })
+
+  it('takes the game from the welcome, and has none in a free room', async () => {
+    await connected(topic(4))
+    expect(last().game).toEqual({ kind: 'topic', topic: 4 })
+    sock.close()
+    await connected(welcome())
+    expect(last().game).toBeNull()
+  })
+
+  it('follows the room about whose turn it is', async () => {
+    await connected(turns(1))
+    current().push({ type: 'turn', slot: 2 })
+    expect(last().game).toEqual({ kind: 'turns', turn: 2 })
+    sock.close()
+    await connected(topic(1))
+    current().push({ type: 'turn', slot: 2 }) // not a pass-the-pen room: nothing to change
+    expect(last().game).toEqual({ kind: 'topic', topic: 1 })
+  })
+
+  it('hands the pen over as soon as you lift yours, before the room has said so', async () => {
+    await connected(turns(1))
+    sock.sendStart(meta)
+    expect(last().game).toEqual({ kind: 'turns', turn: 1 })
+    sock.sendEnd(meta.id)
+    expect(last().game).toEqual({ kind: 'turns', turn: 2 })
+    expect(current().frames().map((f) => f.type)).toEqual(['stroke_start', 'stroke_end'])
+    current().push({ type: 'turn', slot: 2 }) // the room agrees
+    expect(last().game).toEqual({ kind: 'turns', turn: 2 })
+  })
+
+  it('passes the pen, and takes it back with an undo', async () => {
+    await connected(turns(1))
+    sock.sendPass()
+    expect(current().frames().at(-1)).toEqual({ type: 'pass' })
+    expect(last().game).toEqual({ kind: 'turns', turn: 2 })
+    sock.sendUndo()
+    expect(last().game).toEqual({ kind: 'turns', turn: 1 })
+  })
+
+  it('does not touch turns in other rooms', async () => {
+    await connected(topic(2))
+    sock.sendStart(meta)
+    sock.sendEnd(meta.id)
+    expect(last().game).toEqual({ kind: 'topic', topic: 2 })
+  })
+
+  it('shows what the other person drew, even when it is their turn to have drawn it', async () => {
+    await connected(turns(2))
+    ev(1, 'peer', { type: 'stroke_start', ...meta, id: 'peer-stroke-1' })
+    ev(2, 'peer', { type: 'stroke_pts', id: 'peer-stroke-1', pts: [[5, 5, 0.5], [9, 9, 0.5]] })
+    ev(3, 'peer', { type: 'stroke_end', id: 'peer-stroke-1' })
+    expect(board.strokeCount).toBe(1)
+  })
+
+  it('asks for a new topic, and the room answers with it for both people: the canvas is cleared', async () => {
+    await connected(topic(4))
+    board.start('me', meta, [[1, 1, 0.5]])
+    board.end('me', meta.id)
+    sock.sendTopicSet(9, 4)
+    expect(current().frames().at(-1)).toEqual({ type: 'topic_set', topic: 9, after: 4 })
+    expect(last().game).toEqual({ kind: 'topic', topic: 4 }) // not until the room says so
+    ev(1, 'me', { type: 'topic_set', topic: 9, after: 4 }) // the room's order, even for your own request
+    expect(last().game).toEqual({ kind: 'topic', topic: 9 })
+    expect(board.strokeCount).toBe(0)
+  })
+
+  it('ignores a topic change that was made for a topic you are no longer on', async () => {
+    await connected(topic(9))
+    board.start('me', meta, [[1, 1, 0.5]])
+    board.end('me', meta.id)
+    ev(1, 'peer', { type: 'topic_set', topic: 3, after: 4 })
+    expect(last().game).toEqual({ kind: 'topic', topic: 9 })
+    expect(board.strokeCount).toBe(1)
+  })
+
+  it('reloads the room when it refuses a stroke because it was not your turn', async () => {
+    await connected(turns(2))
+    const before = FakeSocket.all.length
+    current().push({ type: 'error', code: 'not_your_turn' })
+    await flush()
+    await flush()
+    expect(FakeSocket.all.length).toBe(before + 1)
+  })
+})
+
+describe('two halves', () => {
+  const halves = (subject: number) => welcome({ peer: PEER, game: { kind: 'halves', subject } })
+  const ev = (seq: number, from: string, body: Extract<ServerMessage, { type: 'event' }>['body']) =>
+    current().push({ type: 'event', seq, from, body })
+
+  it('takes the picture from the welcome', async () => {
+    await connected(halves(3))
+    expect(last().game).toEqual({ kind: 'halves', subject: 3 })
+  })
+
+  it('asks for a new picture, and the room answers for both: the canvas is cleared', async () => {
+    await connected(halves(3))
+    board.start('me', meta, [[1, 1, 0.5]])
+    board.end('me', meta.id)
+    sock.sendSubjectSet(6, 3)
+    expect(current().frames().at(-1)).toEqual({ type: 'subject_set', subject: 6, after: 3 })
+    expect(last().game).toEqual({ kind: 'halves', subject: 3 }) // not until the room says so
+    ev(1, 'me', { type: 'subject_set', subject: 6, after: 3 })
+    expect(last().game).toEqual({ kind: 'halves', subject: 6 })
+    expect(board.strokeCount).toBe(0)
+  })
+
+  it('ignores a change made for a picture you have already left', async () => {
+    await connected(halves(6))
+    board.start('me', meta, [[1, 1, 0.5]])
+    board.end('me', meta.id)
+    ev(1, 'peer', { type: 'subject_set', subject: 2, after: 3 })
+    expect(last().game).toEqual({ kind: 'halves', subject: 6 })
+    expect(board.strokeCount).toBe(1)
+  })
+
+  it('does not treat a topic message as a picture change', async () => {
+    await connected(halves(6))
+    ev(1, 'peer', { type: 'topic_set', topic: 2, after: 6 })
+    expect(last().game).toEqual({ kind: 'halves', subject: 6 })
+  })
+
+  it('draws what the room sends, clamped or not, exactly as it arrives', async () => {
+    await connected(halves(1))
+    ev(1, 'peer', { type: 'stroke_start', ...meta, id: 'peer-stroke-1' })
+    ev(2, 'peer', { type: 'stroke_pts', id: 'peer-stroke-1', pts: [[500, 5, 0.5], [700, 9, 0.5]] })
+    ev(3, 'peer', { type: 'stroke_end', id: 'peer-stroke-1' })
+    expect(board.snapshot()[0]!.points.map((p) => p[0])).toEqual([500, 700])
   })
 })

@@ -4,7 +4,9 @@ import { test, expect, API, newGuestToken } from './fixtures'
 
 test('API-N9 guessing room codes is slowed down per network, however many guest accounts are used', async () => {
   const statuses: number[] = []
-  for (let i = 0; i < 80; i++) {
+  // The limit is 60 a minute in a fixed window. If a window ends during the loop, the hits split between two
+  // windows, so 130 attempts guarantee more than 60 land in one of them.
+  for (let i = 0; i < 130; i++) {
     const token = await newGuestToken() // a fresh account every time: per-user limits would never trip
     const res = await fetch(`${API}/rooms/join`, {
       method: 'POST',

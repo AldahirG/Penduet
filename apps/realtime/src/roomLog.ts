@@ -1,4 +1,6 @@
-import type { ClientMessage, LessonState, Point, Stroke } from '@penduet/protocol'
+import { findLesson, halfSubjects, topics } from '@penduet/lessons'
+import { CANVAS_SIZE } from '@penduet/protocol'
+import type { ClientMessage, GameKind, GameState, LessonState, Point, Slot, Stroke } from '@penduet/protocol'
 
 // The rules of a room's stroke log, with no I/O so they can be tested without a Durable Object.
 // room.ts feeds messages in and carries out the result: broadcast, persist, reply.
@@ -16,6 +18,8 @@ export interface RoomData {
   /** Last sequence number handed out. */
   seq: number
   lesson: LessonState | null
+  /** What a topic or pass-the-pen room is playing. Null in a free room or a lesson. */
+  game: GameState | null
   /** Committed strokes in the order they ended. */
   strokes: Stroke[]
   /** Strokes between stroke_start and stroke_end, keyed by `${authorId}:${id}`. Not persisted. */
@@ -33,9 +37,24 @@ export interface Outcome {
   /** To send to every socket in the room, stamped with its sequence number. */
   event?: { seq: number; from: string; body: ClientMessage }
   storage?: StorageOps
+  /** Pass-the-pen: whose turn it is now, to tell everyone after the event. Only set when it may have changed. */
+  turn?: Slot
   /** Refused: send this error code to the sender only. */
-  refused?: 'bad_message' | 'rate_limited'
+  refused?: 'bad_message' | 'rate_limited' | 'not_your_turn'
 }
+
+/** What the rules of pass-the-pen need to know about the room around a message. */
+export interface TurnContext {
+  /** The sender's seat. */
+  slot: Slot
+  /** Whether someone is connected in that seat. A turn held by an empty seat does not block the other person. */
+  present: (slot: Slot) => boolean
+}
+
+const other = (slot: Slot): Slot => (slot === 1 ? 2 : 1)
+
+/** Seat 1 owns the left half of the canvas and seat 2 the right half. */
+export const clampToHalf = (x: number, slot: Slot): number => (slot === 1 ? Math.min(x, CANVAS_SIZE / 2) : Math.max(x, CANVAS_SIZE / 2))
 
 export const strokeKey = (authorId: string, id: string) => `${authorId}:${id}`
 /** Storage key of a committed stroke. Sorts by commit order. */
@@ -45,15 +64,23 @@ export const committedKey = (seq: number, authorId: string, id: string) =>
 /** A room that was made for a lesson starts on its first step. */
 export const newLesson = (slug: string): LessonState => ({ slug, step: 0, from: 0, result: null, results: [] })
 
+/** A room made for a game starts in its first state: a topic picked at random, or the host to draw first. */
+export function newGame(kind: GameKind, random: () => number = Math.random): GameState | null {
+  if (kind === 'topic') return { kind: 'topic', topic: Math.floor(random() * topics.length) }
+  if (kind === 'turns') return { kind: 'turns', turn: 1 }
+  if (kind === 'halves') return { kind: 'halves', subject: Math.floor(random() * halfSubjects.length) }
+  return null
+}
+
 export function newRoomData(): RoomData {
-  return { seq: 0, lesson: null, strokes: [], open: new Map() }
+  return { seq: 0, lesson: null, game: null, strokes: [], open: new Map() }
 }
 
 /**
  * Applies one validated client message from `from`. Mutates `data` and says what to do about it.
  * A stroke has exactly one author, so there is nothing to merge: the room only orders events.
  */
-export function applyClientMessage(data: RoomData, from: string, msg: ClientMessage): Outcome {
+export function applyClientMessage(data: RoomData, from: string, msg: ClientMessage, ctx?: TurnContext): Outcome {
   switch (msg.type) {
     case 'hello':
       return {} // the name comes from the signed ticket, never from the client
@@ -62,6 +89,8 @@ export function applyClientMessage(data: RoomData, from: string, msg: ClientMess
       if (data.strokes.length >= LIMITS.maxStrokes) return { refused: 'rate_limited' }
       const key = strokeKey(from, msg.id)
       if (data.open.has(key)) return { refused: 'bad_message' }
+      // Pass the pen: only the person whose turn it is may start a stroke, unless that seat is empty.
+      if (data.game?.kind === 'turns' && ctx && data.game.turn !== ctx.slot && ctx.present(data.game.turn)) return { refused: 'not_your_turn' }
       data.open.set(key, {
         id: msg.id,
         authorId: from,
@@ -79,8 +108,10 @@ export function applyClientMessage(data: RoomData, from: string, msg: ClientMess
       // Unknown or someone else's stroke (or the room woke from hibernation mid-stroke): drop it.
       if (!stroke) return { refused: 'bad_message' }
       if (stroke.points.length + msg.pts.length > LIMITS.maxPointsPerStroke) return { refused: 'rate_limited' }
-      for (const p of msg.pts as Point[]) stroke.points.push(p)
-      return { event: stamp(data, from, msg) }
+      // Two halves: a line can reach the middle but not cross it. Everyone gets the clamped points, the sender's own screen included.
+      const pts = data.game?.kind === 'halves' && ctx ? msg.pts.map(([x, y, p]) => [clampToHalf(x, ctx.slot), y, p] as Point) : (msg.pts as Point[])
+      for (const p of pts) stroke.points.push(p)
+      return { event: stamp(data, from, pts === msg.pts ? msg : { ...msg, pts }) }
     }
 
     case 'stroke_end': {
@@ -91,7 +122,14 @@ export function applyClientMessage(data: RoomData, from: string, msg: ClientMess
       const event = stamp(data, from, msg)
       stroke.seq = event.seq
       data.strokes.push(stroke)
-      return { event, storage: { put: { [committedKey(event.seq, from, stroke.id)]: stroke, meta_seq: data.seq } } }
+      const put: Record<string, unknown> = { [committedKey(event.seq, from, stroke.id)]: stroke, meta_seq: data.seq }
+      if (data.game?.kind === 'turns' && ctx) {
+        // One stroke per turn: the pen goes to the other seat.
+        data.game.turn = other(ctx.slot)
+        put.game = data.game
+        return { event, storage: { put }, turn: data.game.turn }
+      }
+      return { event, storage: { put } }
     }
 
     case 'undo': {
@@ -99,9 +137,18 @@ export function applyClientMessage(data: RoomData, from: string, msg: ClientMess
       let i = data.strokes.length - 1
       while (i >= 0 && data.strokes[i]!.authorId !== from) i--
       if (i < 0) return {} // nothing to undo: no event
+      const turns = data.game?.kind === 'turns' && ctx ? data.game : null
+      // Pass the pen: you can take back your stroke only while it is the latest one, which also gives you the pen again.
+      if (turns && i !== data.strokes.length - 1) return { refused: 'not_your_turn' }
       const [removed] = data.strokes.splice(i, 1)
       const event = stamp(data, from, msg)
-      return { event, storage: { del: [committedKey(removed!.seq, from, removed!.id)], put: { meta_seq: data.seq } } }
+      const put: Record<string, unknown> = { meta_seq: data.seq }
+      if (turns && ctx) {
+        turns.turn = ctx.slot
+        put.game = turns
+        return { event, storage: { del: [committedKey(removed!.seq, from, removed!.id)], put }, turn: turns.turn }
+      }
+      return { event, storage: { del: [committedKey(removed!.seq, from, removed!.id)], put } }
     }
 
     case 'clear': {
@@ -124,12 +171,48 @@ export function applyClientMessage(data: RoomData, from: string, msg: ClientMess
         lesson.results[msg.step] = null
       } else {
         lesson.step = msg.step
+        // Each step starts on a clean canvas, or the last step's drawing would sit on top of the next guide.
+        // Past the final step the lesson is done, and the finished drawing stays to look at and save.
+        const total = findLesson(lesson.slug)?.steps.length ?? 0
+        if (msg.step < total && data.strokes.length > 0) {
+          storage.del = data.strokes.map((s) => committedKey(s.seq, s.authorId, s.id))
+          data.strokes = []
+          data.open.clear()
+        }
         lesson.from = data.strokes.length
       }
       lesson.result = null
       const event = stamp(data, from, msg)
       storage.put = { lesson, meta_seq: data.seq }
       return { event, storage }
+    }
+
+    case 'pass': {
+      const game = data.game
+      if (!game || game.kind !== 'turns' || !ctx) return { refused: 'bad_message' }
+      if (game.turn !== ctx.slot) return { refused: 'not_your_turn' }
+      game.turn = other(ctx.slot)
+      return { event: stamp(data, from, msg), storage: { put: { game, meta_seq: data.seq } }, turn: game.turn }
+    }
+
+    case 'subject_set': {
+      const game = data.game
+      if (!game || game.kind !== 'halves' || msg.subject >= halfSubjects.length) return { refused: 'bad_message' }
+      if (msg.after !== game.subject) return {} // someone already changed it: two presses make one change
+      game.subject = msg.subject
+      data.strokes = []
+      data.open.clear()
+      return { event: stamp(data, from, msg), storage: { clearStrokes: true, put: { game, meta_seq: data.seq } } }
+    }
+
+    case 'topic_set': {
+      const game = data.game
+      if (!game || game.kind !== 'topic' || msg.topic >= topics.length) return { refused: 'bad_message' }
+      if (msg.after !== game.topic) return {} // someone already changed it: two presses make one change
+      game.topic = msg.topic
+      data.strokes = []
+      data.open.clear()
+      return { event: stamp(data, from, msg), storage: { clearStrokes: true, put: { game, meta_seq: data.seq } } }
     }
 
     case 'step_result': {

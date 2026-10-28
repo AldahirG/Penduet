@@ -5,6 +5,7 @@ import {
   roomCodeSchema,
   roomJoinedSchema,
   ticketResponseSchema,
+  type GameKind,
   type RoomApiErrorCode,
 } from '@penduet/protocol'
 import { BACKEND_CONFIGURED, REALTIME_URL } from './config'
@@ -32,8 +33,8 @@ export class RoomError extends Error {
 }
 
 export interface RoomsApi {
-  /** A room for free drawing, or for drawing a lesson together when a lesson slug is given. */
-  create(opts?: { lessonSlug?: string; turnstileToken?: string }): Promise<{ code: string }>
+  /** A room for free drawing, for drawing a lesson together when a lesson slug is given, or for a game. */
+  create(opts?: { lessonSlug?: string; game?: GameKind; turnstileToken?: string }): Promise<{ code: string }>
   join(code: string): Promise<{ code: string }>
   /** A socket ticket for a room you are already in. */
   ticket(code: string): Promise<{ ticket: string; isHost: boolean }>
@@ -119,7 +120,13 @@ export function createRealRooms({ baseUrl, token, reset, fetch: doFetch = fetch,
 
   return {
     async create(opts) {
-      return joined(await call('/rooms', { ...(opts?.lessonSlug ? { lessonSlug: opts.lessonSlug } : {}), ...(opts?.turnstileToken ? { turnstileToken: opts.turnstileToken } : {}) }))
+      return joined(
+        await call('/rooms', {
+          ...(opts?.lessonSlug ? { lessonSlug: opts.lessonSlug } : {}),
+          ...(opts?.game && opts.game !== 'free' ? { game: opts.game } : {}),
+          ...(opts?.turnstileToken ? { turnstileToken: opts.turnstileToken } : {}),
+        }),
+      )
     },
     async join(code) {
       return joined(await call('/rooms/join', { code }))

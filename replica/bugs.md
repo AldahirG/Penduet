@@ -14,6 +14,7 @@ Found by `/replica-test` on 2026-10-27 against the local stack (real Worker and 
 | BUG-008 | S3 | The star rating on a result card has an accessible name that screen readers may ignore | fixed |
 | BUG-009 | S4 | In development the skip link is not the first Tab stop | fixed |
 | BUG-010 | S4 | The brand link in the header is 28 px tall on a phone | fixed |
+| BUG-011 | S2 | In a lesson room, the previous step's drawing stays on the canvas under the next step's guide | fixed |
 
 ---
 
@@ -143,6 +144,23 @@ Status: fixed. From 1024 px the lesson text and results sit in a column beside t
 - Evidence: `X-3 touch targets in the toolbar and header are at least 44px`.
 
 ---
+
+### BUG-011: In a lesson room, each step's lines stay on the canvas when the room moves to the next step
+
+- Severity: S2
+- Flow / case: F05b / C-H1, C-E4 (found by the owner while playing, not by the suite)
+- Screen: S11 lesson mode
+- Build: commit 7792a37  Browser / device: Chrome, two people in a lesson room
+
+Steps
+1. Two people open a room for "First shapes" and draw the circle in step 1.
+2. Check, then press "Next step". Draw the triangle in step 2, then move on to the house.
+
+Expected: each step starts on an empty canvas, as it does in a solo lesson.
+Actual: the circle was still on the canvas under the triangle's guide, and both were under the house. By the last step the canvas was a pile of earlier steps. Retry and Skip did clear the step, only Next did not.
+Cause: moving on only moved the marker for where the step's strokes begin (`lesson.from`). The room kept every stroke, on purpose ("moving on keeps the drawing"), and a unit test and an e2e test checked that it stayed.
+Fix: when the room moves to a step before the end, the Worker (`roomLog.ts`) deletes all strokes from its log and storage, and the client (`socket.ts`) clears its board when it sees the same message. After the last step the drawing stays, so the finished picture can be seen and saved. Tests changed on purpose: `roomLog.test.ts`, `socket.test.ts`, `realtime.e2e.ts`; added canvas-is-empty checks to C-H1 and C-E4, and a check that the last drawing stays.
+Open question for the owner: the finished picture is only the last step's drawing, not all steps together. If a "whole picture" is wanted at the end, the strokes would have to be kept per step and shown together only on the summary.
 
 ## To check (not reproduced as a bug, or decided not to fix)
 

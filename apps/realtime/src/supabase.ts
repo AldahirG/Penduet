@@ -1,4 +1,4 @@
-import type { RoomApiErrorCode } from '@penduet/protocol'
+import type { GameKind, RoomApiErrorCode } from '@penduet/protocol'
 import type { Env } from './env'
 
 /** An error the API can return to the caller as is. Nothing in it comes from the upstream body. */
@@ -18,6 +18,7 @@ export interface DbRoom {
   code: string
   host_id: string
   lesson_slug: string | null
+  game: GameKind
   capacity: number
   status: string
 }
@@ -29,6 +30,7 @@ const SQL_ERRORS: Record<string, ApiError> = {
   room_full: new ApiError('room_full', 409),
   too_many_rooms: new ApiError('too_many_rooms', 429),
   bad_lesson: new ApiError('bad_request', 400),
+  bad_game: new ApiError('bad_request', 400),
 }
 
 const TIMEOUT_MS = 8000
@@ -78,7 +80,7 @@ export async function rpc<T>(env: Env, jwt: string, fn: string, args: Record<str
 
 /** The caller's own room row, or null. RLS only returns it to a current member. */
 export async function getMyRoom(env: Env, jwt: string, code: string): Promise<DbRoom | null> {
-  const query = `code=eq.${encodeURIComponent(code)}&status=in.(open,active)&select=id,code,host_id,lesson_slug,capacity,status`
+  const query = `code=eq.${encodeURIComponent(code)}&status=in.(open,active)&select=id,code,host_id,lesson_slug,game,capacity,status`
   const res = await upstream(`${env.SUPABASE_URL}/rest/v1/rooms?${query}`, { headers: headers(env, jwt) })
   if (res.status === 401) throw new ApiError('not_authenticated', 401)
   if (!res.ok) throw new ApiError('server_error', 502)

@@ -13,7 +13,7 @@ export interface FakeSupabase {
   close(): Promise<void>
 }
 
-const COMPOSITE_FNS: Record<string, string[]> = { create_room: ['p_lesson_slug'], join_room: ['p_code'] }
+const COMPOSITE_FNS: Record<string, string[]> = { create_room: ['p_lesson_slug', 'p_game'], join_room: ['p_code'] }
 const SCALAR_FNS: Record<string, string[]> = { leave_room: ['p_code'], end_room: ['p_code'], delete_my_account: [] }
 
 async function body(req: IncomingMessage): Promise<Record<string, unknown>> {
@@ -119,7 +119,7 @@ export async function startFakeSupabase(port: number): Promise<FakeSupabase> {
           asUser(
             db,
             uid,
-            `select id, code, host_id, lesson_slug, capacity, status from rooms where code = $1 and status in ('open','active')`,
+            `select id, code, host_id, lesson_slug, game, capacity, status from rooms where code = $1 and status in ('open','active')`,
             [code],
           ),
         )

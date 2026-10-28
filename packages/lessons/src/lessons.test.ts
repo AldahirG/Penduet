@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { findLesson, lessons, resample, scoreStep, strokeSmoothness, closeness, type GuidePoint } from './index'
+import { findLesson, halfGuide, halfSubjects, lessons, mirror, resample, scoreStep, strokeSmoothness, closeness, type GuidePoint } from './index'
 
 // Deterministic noise, so a threshold test never flakes.
 function rng(seed: number) {
@@ -22,10 +22,14 @@ const wobble = (pts: number[][], amplitude: number) =>
   pts.map((p, i) => [p[0]!, p[1]! + amplitude * Math.sin((i * 5 * 2 * Math.PI) / 40), 0.5])
 
 describe('lesson content', () => {
-  it('has three starter lessons with unique, valid slugs', () => {
-    expect(lessons).toHaveLength(3)
-    expect(new Set(lessons.map((l) => l.slug)).size).toBe(3)
-    for (const l of lessons) expect(l.slug).toMatch(/^[a-z0-9-]{1,64}$/)
+  it('has unique, valid slugs and every lesson has a theme', () => {
+    expect(lessons.length).toBeGreaterThanOrEqual(11)
+    expect(new Set(lessons.map((l) => l.slug)).size).toBe(lessons.length)
+    for (const l of lessons) {
+      expect(l.slug).toMatch(/^[a-z0-9-]{1,64}$/)
+      expect(l.theme.length).toBeGreaterThan(2)
+    }
+    expect(new Set(lessons.map((l) => l.theme)).size).toBeGreaterThanOrEqual(5)
     expect(findLesson('straight-lines')?.title).toBe('Straight lines')
     expect(findLesson('nope')).toBeUndefined()
   })
@@ -172,5 +176,39 @@ describe('helpers', () => {
     expect(closeness(10, 20)).toBe(1)
     expect(closeness(100, 20)).toBe(0)
     expect(closeness(20 * 1.75, 20)).toBeCloseTo(0.5, 5)
+  })
+})
+
+describe('two-halves pictures', () => {
+  it('has pictures with unique slugs', () => {
+    expect(halfSubjects.length).toBeGreaterThanOrEqual(8)
+    expect(new Set(halfSubjects.map((s) => s.slug)).size).toBe(halfSubjects.length)
+    for (const s of halfSubjects) {
+      expect(s.slug).toMatch(/^[a-z0-9-]{1,64}$/)
+      expect(s.title.length).toBeGreaterThan(3)
+      expect(s.prompt.length).toBeGreaterThan(15)
+    }
+  })
+
+  it.each(halfSubjects.map((s) => [s.slug, s] as const))('%s: the left half stays on the left, joins the middle and fits the canvas', (_slug, subject) => {
+    expect(subject.left.length).toBeGreaterThanOrEqual(3)
+    const points = subject.left.flat()
+    for (const line of subject.left) expect(line.length).toBeGreaterThanOrEqual(2)
+    for (const [x, y] of points) {
+      expect(x).toBeGreaterThanOrEqual(0)
+      expect(x).toBeLessThanOrEqual(500)
+      expect(y).toBeGreaterThanOrEqual(0)
+      expect(y).toBeLessThanOrEqual(1000)
+    }
+    // the two people have to meet somewhere: at least two lines touch the middle
+    expect(subject.left.filter((l) => l.some(([x]) => x === 500)).length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('the whole picture is the left half and its mirror image', () => {
+    const subject = halfSubjects[0]!
+    const whole = halfGuide(subject)
+    expect(whole).toHaveLength(subject.left.length * 2)
+    expect(whole.slice(subject.left.length)).toEqual(mirror(subject.left))
+    for (const [x] of whole.slice(subject.left.length).flat()) expect(x).toBeGreaterThanOrEqual(500)
   })
 })

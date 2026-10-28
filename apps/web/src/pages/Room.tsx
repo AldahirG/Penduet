@@ -6,6 +6,8 @@ import { Stub } from '../components/Stub'
 import { usePageTitle } from '../usePageTitle'
 import { ROOMS_ARE_LIVE, RoomError, rooms } from '../data/rooms'
 import { useRoomSession } from '../data/useRoomSession'
+import { GamePanel, useGame } from '../games/GamePanel'
+import { HalvesOverlay } from '../games/HalvesOverlay'
 import { RoomLessonPanel, useRoomLesson } from '../lessons/RoomLesson'
 import { DrawingCanvas } from '../drawing/DrawingCanvas'
 import { CANVAS_BOX_ROOM } from '../drawing/layout'
@@ -81,19 +83,23 @@ function LiveRoom({ code }: { code: string }) {
   const me = state.you?.id ?? null
   const canUndoAny = useCanUndo(board, me)
   const rl = useRoomLesson(state, board, socket)
+  const game = useGame(state, board, socket)
   const { status } = state
-  const canDraw = status === 'live' && me !== null && (!rl || rl.phase === 'draw')
-  const canUndo = rl ? rl.canUndo : canUndoAny
+  const canDraw = status === 'live' && me !== null && (!rl || rl.phase === 'draw') && (game?.kind !== 'turns' || game.myTurn)
+  const canUndo = rl ? rl.canUndo : game?.kind === 'turns' ? game.canUndo : canUndoAny
+  // In pass the pen you can only take a stroke back while it is the latest, which is exactly when the pen is not yours.
+  const undoEnabled = game?.kind === 'turns' ? canUndo && status === 'live' : canUndo && canDraw
 
-  // In a lesson, your strokes start in your seat's colour so you can tell who drew what.
+  // In a lesson or a game, your strokes start in your seat's colour so you can tell who drew what.
   const slot = state.you?.slot
+  const seatColours = rl !== null || game !== null
   useEffect(() => {
-    if (!rl || !slot) return
+    if (!seatColours || !slot) return
     const c = getComputedStyle(document.documentElement).getPropertyValue(`--color-player-${slot}`).trim()
     if (/^#[0-9a-fA-F]{6}$/.test(c)) setColor(c)
     // only when the seat becomes known
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slot, rl === null])
+  }, [slot, seatColours])
   const showCanvas = status !== 'gone' && status !== 'full'
 
   const leave = async () => {
@@ -206,6 +212,11 @@ function LiveRoom({ code }: { code: string }) {
               <RoomLessonPanel c={rl} state={state} />
             </div>
           ) : null}
+          {game && status !== 'connecting' ? (
+            <div className="lg:col-start-2 lg:row-start-1">
+              <GamePanel g={game} />
+            </div>
+          ) : null}
 
           <div className="flex flex-col-reverse gap-3 md:flex-row md:items-start lg:col-start-1 lg:row-span-3 lg:row-start-1">
             <DrawingToolbar
@@ -216,7 +227,7 @@ function LiveRoom({ code }: { code: string }) {
               onColorChange={setColor}
               size={size}
               onSizeChange={setSize}
-              canUndo={canUndo && canDraw}
+              canUndo={undoEnabled}
               onUndo={undo}
               onClear={rl ? rl.restartStep : clear}
               clearCopy={
@@ -238,12 +249,24 @@ function LiveRoom({ code }: { code: string }) {
                 color={color}
                 size={size}
                 disabled={!canDraw}
+                region={game?.kind === 'halves' ? game.region : undefined}
                 onEngine={onEngine}
                 onStrokeStart={(meta) => socket.sendStart(meta)}
                 onStrokePoints={(id, pts) => socket.sendPoints(id, pts)}
                 onStrokeEnd={(id) => socket.sendEnd(id)}
-                label={rl && rl.step ? `Shared lesson canvas, step ${rl.stepIndex + 1} of ${rl.lesson.steps.length}. ${rl.step.prompt}` : undefined}
+                label={
+                  rl && rl.step
+                    ? `Shared lesson canvas, step ${rl.stepIndex + 1} of ${rl.lesson.steps.length}. ${rl.step.prompt}`
+                    : game?.kind === 'topic'
+                      ? `Shared canvas. Topic: ${game.topic}`
+                      : game?.kind === 'turns'
+                        ? `Shared canvas. ${game.myTurn ? 'It is your turn.' : `It is ${game.peerName}'s turn.`}`
+                        : game?.kind === 'halves'
+                          ? `Shared canvas, split down the middle. ${game.title}. You draw the ${game.side} half.`
+                          : undefined
+                }
               />
+              {game?.kind === 'halves' ? <HalvesOverlay guide={game.guide} side={game.side} /> : null}
               {rl && rl.step ? (
                 <GuideOverlay guide={rl.step.guide} tolerance={rl.step.tolerance} result={rl.phase === 'result' ? state.lesson?.result?.guideCoverage : undefined} />
               ) : null}

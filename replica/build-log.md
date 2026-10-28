@@ -123,3 +123,25 @@ Named **Penduet**, new cobalt palette (0 AA failures in light and dark), favicon
 ## Launch material (2026-10-27, replica-launch)
 
 Landing page built into `/` (`Home.tsx`) with real screenshots from the running app (`scripts/capture-landing.mjs`); `replica/launch/` holds `landing.md`, `pricing.md`, `listing.json` (passes `listing.py`) and `launch-plan.md`. Five new browser tests for the landing page, including ones that fail on fake proof and on the original's name. Pricing research read two competitor pages and could not read two others; nothing is for sale and no billing is built. The store listing is a draft: the product is not in any store.
+
+## More lessons and two game modes (2026-10-28)
+
+- **Eight new lessons** (eleven in all, seven themes): happy cat, little fish, simple flower, big tree, sailboat, friendly face, wavy patterns, night sky. Data only, in `packages/lessons/src/content.ts`. Every step is checked by the same tests as the first three (a clean trace gets three stars, a shaky hand still passes, a drawing in the wrong place fails). Two steps had to be redrawn because the steadiness measure scores tiny closed shapes (stars, small circles) below the three-star line even when traced perfectly: stars became a planet and shooting stars, apples became birds. That measure penalises small tight curves, so playtests should look at it before more detail steps are written.
+- **Draw a topic together**: a prompt from a list of 30 (`packages/lessons/src/topics.ts`), the same for both people, either can ask for a new one (clears the canvas; two presses at once change it once). No score.
+- **Pass the pen**: one stroke each, in turn, enforced by the room. Pass without drawing; take your latest stroke back and the pen returns to you; if the person who has the pen is away, the other can keep drawing.
+- New column `rooms.game` and `create_room(p_lesson_slug, p_game)` (migration 0005), protocol messages `topic_set`, `pass`, `turn`, error `not_your_turn`, rules in `roomLog.ts`, panel in `apps/web/src/games/GamePanel.tsx`.
+- Tests added: 8 lesson-content cases and 66 scoring cases (generated per step), 2 DB, 17 Worker rule and route cases, 9 client socket cases, 7 Worker end-to-end cases against `wrangler dev`, 9 browser cases (`e2e/games.spec.ts`, one on a phone).
+- Not tried: two real people with a pen playing either game; whether one stroke per turn feels right (it may want two or three, or a timer); the new lesson guides drawn by real hands (tolerances are first guesses).
+- The dev partner script (`pnpm --filter @penduet/realtime partner`) does not play the games: in a pass-the-pen room its strokes are refused out of turn.
+
+## Two halves of one picture (2026-10-28)
+
+A third game, from the owner's idea: a split screen where each person draws half of a picture.
+
+- Eight symmetric pictures (butterfly, face, house, rocket, heart, pine tree, robot, mushroom) in `packages/lessons/src/halves.ts`, each written as its left half only; the right half is its mirror. The whole picture is shown as a dashed guide on both screens, with a line down the middle and a light shade over the half that is not yours.
+- Seat 1 (whoever opened the room) draws the left half and seat 2 the right half. The room clamps every point to its owner's half, so a line can reach the middle but not cross it, and what the other person receives is exactly what the sender sees. A press that starts in the other half does nothing. The ends of a line stopped at the middle are round, so a few pixels spill over the line; that is on purpose.
+- Both draw at the same time (no turns). "New picture" works like "New topic": either person, clears the canvas, two presses make one change.
+- Protocol: `subject_set`, game state `halves`. Migration 0005 was edited in place (it had not been applied anywhere) to allow `halves`.
+- Shape helpers moved from `content.ts` into `packages/lessons/src/shapes.ts` so the lessons and the pictures share them.
+- Tests added: 12 picture-content cases, 8 Worker rule cases, 5 client socket cases, 3 Worker end-to-end cases, 4 browser cases and the axe and phone checks.
+- Not tried: two real people finishing a picture; whether the guide is too strong or too weak; the pictures were drawn by guesswork and only checked by eye in one screenshot. There is no score for this game. Easy next steps: a "how well do the halves match" score (the guide and `scoreStep` are already there), pictures that are not symmetric (two people each draw the other half of a different thing), and a vertical split option.

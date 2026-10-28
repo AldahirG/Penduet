@@ -135,6 +135,19 @@ export async function ink(page: Page): Promise<number> {
   })
 }
 
+/** How many canvas pixels have ink in the left or the right half of the canvas. */
+export async function inkIn(page: Page, half: 'left' | 'right'): Promise<number> {
+  return canvasOf(page).evaluate((el, which) => {
+    const c = el as HTMLCanvasElement
+    const mid = Math.floor(c.width / 2)
+    const [x0, w] = which === 'left' ? [0, mid] : [mid, c.width - mid]
+    const data = c.getContext('2d')!.getImageData(x0, 0, w, c.height).data
+    let n = 0
+    for (let i = 3; i < data.length; i += 4) if (data[i]! > 0) n++
+    return n
+  }, half)
+}
+
 /** Traces every line of a lesson step's guide, as a person would. */
 export async function traceStep(page: Page, slug: string, step: number): Promise<void> {
   const guide = findLesson(slug)!.steps[step]!.guide
@@ -155,6 +168,16 @@ export async function newGuestToken(): Promise<string> {
 export async function createRoom(page: Page, lessonTitle?: string): Promise<string> {
   await page.goto('/together')
   if (lessonTitle) await page.getByLabel('What will you draw?').selectOption({ label: `Lesson: ${lessonTitle}` })
+  await page.getByRole('button', { name: 'Create room' }).click()
+  await page.waitForURL(/\/room\/[A-Z2-9]{6}$/)
+  await expect(page.getByText('you, here')).toBeVisible()
+  return page.url().split('/').pop()!
+}
+
+/** Creates a room for a game from the rooms hub, as a person would, and waits until live. Returns its code. */
+export async function createGameRoom(page: Page, game: 'Draw a topic together' | 'Pass the pen' | 'Two halves of one picture'): Promise<string> {
+  await page.goto('/together')
+  await page.getByLabel('What will you draw?').selectOption({ label: `Game: ${game}` })
   await page.getByRole('button', { name: 'Create room' }).click()
   await page.waitForURL(/\/room\/[A-Z2-9]{6}$/)
   await expect(page.getByText('you, here')).toBeVisible()

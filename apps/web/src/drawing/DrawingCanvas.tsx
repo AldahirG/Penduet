@@ -17,6 +17,8 @@ export interface DrawingCanvasProps {
   onStrokeStart?: (meta: StrokeMeta) => void
   onStrokePoints?: (id: string, pts: Point[]) => void
   onStrokeEnd?: (id: string) => void
+  /** Keeps drawing inside a band of the canvas, as logical x. A stroke cannot start outside it and is stopped at its edge. */
+  region?: { minX: number; maxX: number }
   /** Text for screen readers, for example the lesson step. */
   label?: string
   /** Gives the parent the engine, for exporting a picture. */
@@ -44,6 +46,7 @@ export function DrawingCanvas({
   color,
   size,
   disabled = false,
+  region,
   onStrokeStart,
   onStrokePoints,
   onStrokeEnd,
@@ -56,8 +59,8 @@ export function DrawingCanvas({
   const active = useRef<{ pointerId: number; id: string; last: [number, number] } | null>(null)
   const lastPenAt = useRef(0)
   // The latest props for event handlers, without re-binding them on every render.
-  const live = useRef({ authorId, tool, color, size, disabled, onStrokeStart, onStrokePoints, onStrokeEnd })
-  live.current = { authorId, tool, color, size, disabled, onStrokeStart, onStrokePoints, onStrokeEnd }
+  const live = useRef({ authorId, tool, color, size, disabled, region, onStrokeStart, onStrokePoints, onStrokeEnd })
+  live.current = { authorId, tool, color, size, disabled, region, onStrokeStart, onStrokePoints, onStrokeEnd }
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -98,7 +101,18 @@ export function DrawingCanvas({
     if (!canvas || !engine) return null
     const rect = canvas.getBoundingClientRect()
     const [x, y] = engine.toLogical(e.clientX - rect.left, e.clientY - rect.top)
-    return [Math.round(x * 10) / 10, Math.round(y * 10) / 10, pressureOf(e)]
+    const r = live.current.region
+    const cx = r ? Math.min(r.maxX, Math.max(r.minX, x)) : x
+    return [Math.round(cx * 10) / 10, Math.round(y * 10) / 10, pressureOf(e)]
+  }
+
+  const insideRegion = (ev: globalThis.PointerEvent, r: { minX: number; maxX: number }): boolean => {
+    const canvas = canvasRef.current
+    const engine = engineRef.current
+    if (!canvas || !engine) return false
+    const rect = canvas.getBoundingClientRect()
+    const [x] = engine.toLogical(ev.clientX - rect.left, ev.clientY - rect.top)
+    return x >= r.minX && x <= r.maxX
   }
 
   const finish = () => {
@@ -117,6 +131,8 @@ export function DrawingCanvas({
     else if (e.pointerType === 'touch' && Date.now() - lastPenAt.current < 1500) return
     const first = toPoint(e.nativeEvent)
     if (!first) return
+    // Your half only: a press in the other person's half does nothing. (The point was clamped, so compare with the raw position.)
+    if (cur.region && !insideRegion(e.nativeEvent, cur.region)) return
     try {
       e.currentTarget.setPointerCapture?.(e.pointerId) // keeps the stroke going outside the canvas
     } catch {

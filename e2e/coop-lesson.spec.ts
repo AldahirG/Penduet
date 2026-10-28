@@ -45,6 +45,8 @@ test.describe('F05b co-op lesson in a room (S11 lesson mode)', () => {
     for (const p of [a, b]) {
       await expect(p.page.getByText(lesson.steps[1]!.prompt)).toBeVisible()
       await expect(stepHeading(p.page, 2)).toBeVisible()
+      // the new step starts on a clean canvas: step 1's lines do not sit under step 2's guide
+      await expect.poll(() => ink(p.page)).toBe(0)
     }
   })
 
@@ -93,6 +95,8 @@ test.describe('F05b co-op lesson in a room (S11 lesson mode)', () => {
     for (let i = 0; i < stepsOf(SLUG); i++) {
       const drawer = i % 2 === 0 ? a : b // take turns
       const other = i % 2 === 0 ? b : a
+      await expect.poll(() => ink(drawer.page)).toBe(0) // every step starts clean, whatever was drawn before
+      await expect.poll(() => ink(other.page)).toBe(0)
       await traceStep(drawer.page, SLUG, i)
       await expect.poll(() => ink(other.page)).toBeGreaterThan(300)
       await drawer.page.getByRole('button', { name: 'Check our drawing' }).click()
@@ -102,6 +106,7 @@ test.describe('F05b co-op lesson in a room (S11 lesson mode)', () => {
       await expect(p.page.getByRole('heading', { name: 'Lesson finished' })).toBeVisible()
       await expect(p.page.getByText('Well drawn, both of you')).toBeVisible()
       await expect(p.page.getByRole('button', { name: 'Draw it again' })).toBeVisible()
+      expect(await ink(p.page), 'the drawing of the last step stays to look at and save').toBeGreaterThan(300)
     }
     for (const p of [a, b]) {
       const stored = await p.page.evaluate(() => localStorage.getItem('penduet.progress.v1'))

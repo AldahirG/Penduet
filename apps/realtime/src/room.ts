@@ -13,11 +13,13 @@ import type { Env } from './env'
 import {
   allowMessage,
   applyClientMessage,
+  newGame,
   newLesson,
   newRoomData,
   type RateWindow,
   type RoomData,
   type StorageOps,
+  type TurnContext,
 } from './roomLog'
 import { ticketFromProtocolHeader, verifyTicket } from './ticket'
 
@@ -64,13 +66,14 @@ export class Room extends DurableObject<Env> {
   }
 
   private async load(): Promise<void> {
-    const stored = await this.ctx.storage.get<unknown>(['meta', 'slots', 'ended', 'lesson', 'meta_seq'])
+    const stored = await this.ctx.storage.get<unknown>(['meta', 'slots', 'ended', 'lesson', 'game', 'meta_seq'])
     const meta = stored.get('meta') as Meta | undefined
     if (!meta) return
     this.meta = meta
     this.slots = (stored.get('slots') as Record<string, 1 | 2> | undefined) ?? {}
     this.ended = stored.get('ended') === true
     this.data.lesson = (stored.get('lesson') as RoomData['lesson'] | undefined) ?? null
+    this.data.game = (stored.get('game') as RoomData['game'] | undefined) ?? null
     this.data.seq = ((stored.get('meta_seq') as number | undefined) ?? 0) + SEQ_GAP_AFTER_WAKE
     const strokes = await this.ctx.storage.list<Stroke>({ prefix: 's:' })
     this.data.strokes = [...strokes.values()]
@@ -90,7 +93,12 @@ export class Room extends DurableObject<Env> {
     if (!this.meta) {
       this.meta = { rid: claims.rid, code: claims.code, cap: claims.cap }
       if (claims.lesson) this.data.lesson = newLesson(claims.lesson)
-      await this.ctx.storage.put({ meta: this.meta, ...(this.data.lesson ? { lesson: this.data.lesson } : {}) })
+      else this.data.game = newGame(claims.game)
+      await this.ctx.storage.put({
+        meta: this.meta,
+        ...(this.data.lesson ? { lesson: this.data.lesson } : {}),
+        ...(this.data.game ? { game: this.data.game } : {}),
+      })
     }
 
     // One socket per person: a new connection replaces the old one (reconnect, second tab).
@@ -134,6 +142,7 @@ export class Room extends DurableObject<Env> {
       strokes: this.data.strokes,
       open: [...this.data.open.values()],
       lesson: this.data.lesson,
+      game: this.data.game,
       lastSeq: this.data.seq,
     })
     for (const ws of others) this.send(ws, { type: 'peer_joined', peer: you })
@@ -163,7 +172,7 @@ export class Room extends DurableObject<Env> {
       return
     }
 
-    const outcome = applyClientMessage(this.data, att.uid, parsed.data)
+    const outcome = applyClientMessage(this.data, att.uid, parsed.data, this.turnContext(att.slot))
     if (outcome.refused) {
       this.send(ws, { type: 'error', code: outcome.refused })
       return
@@ -172,6 +181,7 @@ export class Room extends DurableObject<Env> {
       const frame = JSON.stringify({ type: 'event', ...outcome.event } satisfies ServerMessage)
       for (const peer of this.liveSockets()) peer.send(frame)
     }
+    if (outcome.turn) this.broadcastTurn(outcome.turn)
     if (outcome.storage) await this.persist(outcome.storage)
     if (parsed.data.type === 'stroke_end') await this.touch()
   }
@@ -237,6 +247,16 @@ export class Room extends DurableObject<Env> {
     return this.ctx.getWebSockets().filter((ws) => !this.attachment(ws).replaced)
   }
 
+  /** What pass-the-pen needs to know: the sender's seat, and whether a seat has someone in it. */
+  private turnContext(slot: 1 | 2): TurnContext {
+    return { slot, present: (s) => this.liveSockets().some((ws) => this.attachment(ws).slot === s) }
+  }
+
+  private broadcastTurn(slot: 1 | 2): void {
+    const frame = JSON.stringify({ type: 'turn', slot } satisfies ServerMessage)
+    for (const ws of this.liveSockets()) ws.send(frame)
+  }
+
   private send(ws: WebSocket, msg: ServerMessage): void {
     ws.send(JSON.stringify(msg))
   }
@@ -270,9 +290,14 @@ export class Room extends DurableObject<Env> {
    */
   private async finishOpenStrokes(uid: string, sid: string): Promise<void> {
     for (const stroke of [...this.data.open.values()].filter((s) => s.authorId === uid)) {
-      const outcome = applyClientMessage(this.data, uid, { type: 'stroke_end', id: stroke.id })
+      const slot = this.slots[uid]
+      const outcome = applyClientMessage(this.data, uid, { type: 'stroke_end', id: stroke.id }, slot ? this.turnContext(slot) : undefined)
       if (outcome.event) {
         const frame = JSON.stringify({ type: 'event', ...outcome.event } satisfies ServerMessage)
+        for (const peer of this.liveSockets()) if (this.attachment(peer).sid !== sid) peer.send(frame)
+      }
+      if (outcome.turn) {
+        const frame = JSON.stringify({ type: 'turn', slot: outcome.turn } satisfies ServerMessage)
         for (const peer of this.liveSockets()) if (this.attachment(peer).sid !== sid) peer.send(frame)
       }
       if (outcome.storage) await this.persist(outcome.storage)

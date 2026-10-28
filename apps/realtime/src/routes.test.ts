@@ -146,7 +146,28 @@ describe('POST /rooms', () => {
     // The user's own JWT went to Supabase, so auth.uid() inside the SQL function is the caller.
     const create = calls.find((c) => c.path === '/rest/v1/rpc/create_room')!
     expect((create.init!.headers as Record<string, string>).authorization).toBe(`Bearer ${JWT}`)
-    expect(JSON.parse(create.init!.body as string)).toEqual({ p_lesson_slug: 'straight-lines' })
+    expect(JSON.parse(create.init!.body as string)).toEqual({ p_lesson_slug: 'straight-lines', p_game: 'free' })
+  })
+
+  it('passes a game to create_room and puts it in the ticket and the answer', async () => {
+    const calls = fakeSupabase({ ...happy(), '/rest/v1/rpc/create_room': { body: { ...ROOM, lesson_slug: null, game: 'turns' } } })
+    const res = await handleRequest(req('/rooms', { method: 'POST', body: JSON.stringify({ game: 'turns' }) }), makeEnv().env)
+    expect(res.status).toBe(201)
+    const body = roomJoinedSchema.parse(await res.json())
+    expect(body.game).toBe('turns')
+    expect(await verifyTicket(SECRET, body.ticket)).toMatchObject({ game: 'turns', lesson: null })
+    const create = calls.find((c) => c.path === '/rest/v1/rpc/create_room')!
+    expect(JSON.parse(create.init!.body as string)).toEqual({ p_lesson_slug: null, p_game: 'turns' })
+  })
+
+  it('refuses a game that does not exist, and maps what the database says about a bad one', async () => {
+    fakeSupabase(happy())
+    const { env } = makeEnv()
+    const res = await handleRequest(req('/rooms', { method: 'POST', body: JSON.stringify({ game: 'battle-royale' }) }), env)
+    expect(res.status).toBe(400)
+    fakeSupabase({ ...happy(), '/rest/v1/rpc/create_room': { status: 400, body: { code: 'P0001', message: 'bad_game' } } })
+    const again = await handleRequest(req('/rooms', { method: 'POST', body: JSON.stringify({ game: 'turns', lessonSlug: 'straight-lines' }) }), env)
+    expect(again.status).toBe(400)
   })
 
   it('validates the body on the server', async () => {

@@ -81,8 +81,9 @@ async function issueTicket(env: Env, jwt: string, userId: string, room: DbRoom):
     code: room.code,
     cap: room.capacity,
     lesson: room.lesson_slug,
+    game: room.game ?? 'free',
   })
-  return { code: room.code, lessonSlug: room.lesson_slug, ticket, isHost: room.host_id === userId }
+  return { code: room.code, lessonSlug: room.lesson_slug, game: room.game ?? 'free', ticket, isHost: room.host_id === userId }
 }
 
 const roomStub = (env: Env, roomId: string) => env.ROOM.get(env.ROOM.idFromName(roomId))
@@ -171,7 +172,7 @@ async function createRoom(request: Request, env: Env, ip: string): Promise<Respo
     if (!ok) throw new ApiError('captcha_failed', 403)
   }
 
-  const room = await rpc<DbRoom>(env, jwt, 'create_room', { p_lesson_slug: parsed.data.lessonSlug ?? null })
+  const room = await rpc<DbRoom>(env, jwt, 'create_room', { p_lesson_slug: parsed.data.lessonSlug ?? null, p_game: parsed.data.game ?? 'free' })
   return json(await issueTicket(env, jwt, user.id, room), 201)
 }
 

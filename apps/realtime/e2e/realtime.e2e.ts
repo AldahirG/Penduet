@@ -324,16 +324,16 @@ describe('a lesson shared by two people', () => {
     for (const m of stroke('host-step1-1')) hostClient.send(m)
     await new Promise((r) => setTimeout(r, 150))
 
-    // The guest drops and returns: the snapshot says step 2, where it began, and the step 1 result.
+    // The guest drops and returns: the snapshot says step 2, on the clean canvas it began with, and the step 1 result.
     guestClient.ws.close()
     await hostClient.waitFor((m) => (m as { type: string }).type === 'peer_left')
     const back = await connect(code, (await api(`/rooms/${code}/ticket`, guest)).json!.ticket)
     const w = await back.waitFor<Welcome>((m) => (m as { type: string }).type === 'welcome')
-    expect(w.lesson).toMatchObject({ slug: 'straight-lines', step: 1, from: 2, result: null })
+    expect(w.lesson).toMatchObject({ slug: 'straight-lines', step: 1, from: 0, result: null })
     expect(w.lesson!.results[0]).toEqual({ accuracy: 92, smoothness: 81, stars: 3 })
-    expect(w.strokes.map((s) => s.id).sort()).toEqual(['guest-step0-1', 'host-step0-1', 'host-step1-1'])
+    expect(w.strokes.map((s) => s.id)).toEqual(['host-step1-1']) // step 1's strokes are gone
 
-    // Starting step 2 again removes its stroke for everyone, and the earlier drawing stays.
+    // Starting step 2 again removes its stroke for everyone.
     back.send({ type: 'lesson_set', slug: 'straight-lines', step: 1, restart: true })
     await eventOf(hostClient, 'lesson_set')
     await new Promise((r) => setTimeout(r, 100))
@@ -341,8 +341,8 @@ describe('a lesson shared by two people', () => {
     await back.waitFor((m) => (m as { type: string }).type === 'peer_left')
     const hostAgain = await connect(code, (await api(`/rooms/${code}/ticket`, host)).json!.ticket)
     const w2 = await hostAgain.waitFor<Welcome>((m) => (m as { type: string }).type === 'welcome')
-    expect(w2.strokes.map((s) => s.id).sort()).toEqual(['guest-step0-1', 'host-step0-1'])
-    expect(w2.lesson).toMatchObject({ step: 1, from: 2, result: null })
+    expect(w2.strokes).toEqual([])
+    expect(w2.lesson).toMatchObject({ step: 1, from: 0, result: null })
     expect(w2.lesson!.results[1]).toBeNull()
     hostAgain.ws.close()
     back.ws.close()
@@ -429,5 +429,207 @@ describe('handshake security', () => {
     for (let i = 0; i < 3; i++) expect((await api('/rooms', host, {})).status).toBe(201)
     const res = await api('/rooms', host, {})
     expect([res.status, res.json]).toEqual([429, { error: 'too_many_rooms' }])
+  })
+})
+
+describe('game rooms', () => {
+  type Welcome = Extract<ServerMessage, { type: 'welcome' }>
+
+  async function gameRoom(game: 'topic' | 'turns') {
+    const [host, guest] = [await supabase.signInAnonymously(), await supabase.signInAnonymously()]
+    const created = await api('/rooms', host, { game })
+    expect(created.status).toBe(201)
+    expect(created.json!.game).toBe(game)
+    const code = created.json!.code as string
+    const hostClient = await connect(code, created.json!.ticket)
+    const hostWelcome = await hostClient.waitFor<Welcome>((m) => (m as { type: string }).type === 'welcome')
+    const guestClient = await connect(code, (await api('/rooms/join', guest, { code })).json!.ticket)
+    const guestWelcome = await guestClient.waitFor<Welcome>((m) => (m as { type: string }).type === 'welcome')
+    return { host, guest, code, hostClient, guestClient, hostWelcome, guestWelcome }
+  }
+  const turnOf = (c: Client, slot: number) => c.waitFor((m) => (m as any).type === 'turn' && (m as any).slot === slot)
+
+  it('refuses a game together with a lesson, and a game that does not exist', async () => {
+    const host = await supabase.signInAnonymously()
+    expect((await api('/rooms', host, { game: 'turns', lessonSlug: 'straight-lines' })).status).toBe(400)
+    expect((await api('/rooms', host, { game: 'battle-royale' })).status).toBe(400)
+  })
+
+  it('a topic room starts both people on the same topic, and a new topic reaches both and clears the canvas', async () => {
+    const { host, code, hostClient, guestClient, hostWelcome, guestWelcome } = await gameRoom('topic')
+    expect(hostWelcome.game).toMatchObject({ kind: 'topic' })
+    expect(guestWelcome.game).toEqual(hostWelcome.game)
+    const first = (hostWelcome.game as { topic: number }).topic
+
+    for (const m of stroke('host-topic-1')) hostClient.send(m)
+    await eventOf(guestClient, 'stroke_end')
+
+    const next = (first + 1) % 30
+    guestClient.send({ type: 'topic_set', topic: next, after: first })
+    expect((await eventOf(hostClient, 'topic_set')).body).toMatchObject({ topic: next, after: first })
+    await eventOf(guestClient, 'topic_set') // the sender gets it back too
+
+    // someone who comes back sees the new topic on an empty canvas
+    hostClient.ws.close()
+    await guestClient.waitFor((m) => (m as { type: string }).type === 'peer_left')
+    const back = await connect(code, (await api(`/rooms/${code}/ticket`, host)).json!.ticket)
+    const w = await back.waitFor<Welcome>((m) => (m as { type: string }).type === 'welcome')
+    expect(w.game).toEqual({ kind: 'topic', topic: next })
+    expect(w.strokes).toEqual([])
+    back.ws.close()
+    guestClient.ws.close()
+  })
+
+  it('a second request for the topic everyone has left changes nothing', async () => {
+    const { hostClient, guestClient, hostWelcome } = await gameRoom('topic')
+    const first = (hostWelcome.game as { topic: number }).topic
+    hostClient.send({ type: 'topic_set', topic: (first + 1) % 30, after: first })
+    await eventOf(guestClient, 'topic_set')
+    for (const m of stroke('guest-topic-1')) guestClient.send(m)
+    guestClient.send({ type: 'topic_set', topic: (first + 2) % 30, after: first }) // stale: ignored
+    await new Promise((r) => setTimeout(r, 150))
+    expect(guestClient.msgs.filter((m) => (m as any).type === 'event' && (m as any).body?.type === 'topic_set')).toHaveLength(1)
+    hostClient.ws.close()
+    guestClient.ws.close()
+  })
+
+  it('refuses topic messages in a free room', async () => {
+    const { hostClient } = await newRoom()
+    hostClient.send({ type: 'topic_set', topic: 1, after: 0 })
+    await hostClient.waitFor((m) => (m as any).type === 'error' && (m as any).code === 'bad_message')
+    hostClient.ws.close()
+  })
+
+  it('pass the pen: the host starts, the pen goes back and forth, and nobody draws out of turn', async () => {
+    const { hostClient, guestClient, hostWelcome, guestWelcome } = await gameRoom('turns')
+    expect(hostWelcome.game).toEqual({ kind: 'turns', turn: 1 })
+    expect(guestWelcome.game).toEqual({ kind: 'turns', turn: 1 })
+
+    // the guest tries to draw on the host's turn
+    guestClient.send({ type: 'stroke_start', id: 'guest-early-1', tool: 'pen', color: '#336699', size: 6 })
+    await guestClient.waitFor((m) => (m as any).type === 'error' && (m as any).code === 'not_your_turn')
+    expect(hostClient.msgs.some((m) => (m as any).body?.id === 'guest-early-1')).toBe(false)
+
+    // the host draws one stroke: both are told the pen moved
+    for (const m of stroke('host-turn-1')) hostClient.send(m)
+    await turnOf(hostClient, 2)
+    await turnOf(guestClient, 2)
+
+    // now the host cannot draw again, and the guest can
+    hostClient.send({ type: 'stroke_start', id: 'host-again-1', tool: 'pen', color: '#336699', size: 6 })
+    await hostClient.waitFor((m) => (m as any).type === 'error' && (m as any).code === 'not_your_turn')
+    for (const m of stroke('guest-turn-1')) guestClient.send(m)
+    await turnOf(hostClient, 1)
+    await turnOf(guestClient, 1)
+    hostClient.ws.close()
+    guestClient.ws.close()
+  })
+
+  it('pass the pen: passing, undoing and reconnecting keep the turn right', async () => {
+    const { host, code, hostClient, guestClient } = await gameRoom('turns')
+    hostClient.send({ type: 'pass' })
+    await turnOf(guestClient, 2)
+    guestClient.send({ type: 'pass' }) // the guest passes it back
+    await turnOf(hostClient, 1)
+    guestClient.send({ type: 'pass' }) // not the guest's turn now
+    await guestClient.waitFor((m) => (m as any).type === 'error' && (m as any).code === 'not_your_turn')
+
+    for (const m of stroke('host-turn-1')) hostClient.send(m)
+    await turnOf(guestClient, 2)
+    hostClient.send({ type: 'undo' }) // takes the stroke back, and the pen with it
+    await turnOf(guestClient, 1)
+
+    for (const m of stroke('host-turn-2')) hostClient.send(m)
+    await turnOf(guestClient, 2)
+    hostClient.ws.close()
+    await guestClient.waitFor((m) => (m as { type: string }).type === 'peer_left')
+    const back = await connect(code, (await api(`/rooms/${code}/ticket`, host)).json!.ticket)
+    const w = await back.waitFor<Welcome>((m) => (m as { type: string }).type === 'welcome')
+    expect(w.game).toEqual({ kind: 'turns', turn: 2 })
+    expect(w.strokes.map((s) => s.id)).toEqual(['host-turn-2'])
+    back.ws.close()
+    guestClient.ws.close()
+  })
+
+  it('pass the pen: when the person who has the pen is away, the other can keep drawing', async () => {
+    const { hostClient, guestClient } = await gameRoom('turns')
+    hostClient.ws.close()
+    await guestClient.waitFor((m) => (m as { type: string }).type === 'peer_left')
+    for (const m of stroke('guest-alone-1')) guestClient.send(m)
+    await eventOf(guestClient, 'stroke_end')
+    expect(guestClient.msgs.some((m) => (m as any).type === 'error')).toBe(false)
+    guestClient.ws.close()
+  })
+})
+
+describe('two halves rooms', () => {
+  type Welcome = Extract<ServerMessage, { type: 'welcome' }>
+
+  async function halvesRoom() {
+    const [host, guest] = [await supabase.signInAnonymously(), await supabase.signInAnonymously()]
+    const created = await api('/rooms', host, { game: 'halves' })
+    expect(created.status).toBe(201)
+    expect(created.json!.game).toBe('halves')
+    const code = created.json!.code as string
+    const hostClient = await connect(code, created.json!.ticket)
+    const hostWelcome = await hostClient.waitFor<Welcome>((m) => (m as { type: string }).type === 'welcome')
+    const guestClient = await connect(code, (await api('/rooms/join', guest, { code })).json!.ticket)
+    const guestWelcome = await guestClient.waitFor<Welcome>((m) => (m as { type: string }).type === 'welcome')
+    return { host, guest, code, hostClient, guestClient, hostWelcome, guestWelcome }
+  }
+
+  const cross = (id: string, xs: number[]) => [
+    { type: 'stroke_start', id, tool: 'pen', color: '#336699', size: 6 },
+    { type: 'stroke_pts', id, pts: xs.map((x) => [x, 300, 0.5]) },
+    { type: 'stroke_end', id },
+  ]
+
+  it('gives both people the same picture, and keeps each person on their own half', async () => {
+    const { host, code, hostClient, guestClient, hostWelcome, guestWelcome } = await halvesRoom()
+    expect(hostWelcome.game).toMatchObject({ kind: 'halves' })
+    expect(guestWelcome.game).toEqual(hostWelcome.game)
+
+    // the host is on the left and tries to cross the middle; the guest is on the right and tries to cross it too
+    for (const m of cross('host-cross-1', [100, 450, 700, 900])) hostClient.send(m)
+    for (const m of cross('guest-cross-1', [900, 600, 300, 100])) guestClient.send(m)
+    const fromHost = await guestClient.waitFor((m) => (m as any).type === 'event' && (m as any).body?.type === 'stroke_pts' && (m as any).from !== undefined && (m as any).body.id === 'host-cross-1')
+    expect((fromHost as any).body.pts.map((p: number[]) => p[0])).toEqual([100, 450, 500, 500])
+    await eventOf(hostClient, 'stroke_end')
+    await new Promise((r) => setTimeout(r, 150))
+
+    // a later arrival gets the same, clamped, in the snapshot
+    guestClient.ws.close()
+    await hostClient.waitFor((m) => (m as { type: string }).type === 'peer_left')
+    const back = await connect(code, (await api(`/rooms/${code}/ticket`, host)).json!.ticket)
+    const w = await back.waitFor<Welcome>((m) => (m as { type: string }).type === 'welcome')
+    const byId = Object.fromEntries(w.strokes.map((s) => [s.id, s.points.map((p) => p[0])]))
+    expect(byId['host-cross-1']).toEqual([100, 450, 500, 500])
+    expect(byId['guest-cross-1']).toEqual([900, 600, 500, 500])
+    back.ws.close()
+    hostClient.ws.close()
+  })
+
+  it('a new picture reaches both and clears the canvas; a second request for the old one changes nothing', async () => {
+    const { hostClient, guestClient, hostWelcome } = await halvesRoom()
+    const first = (hostWelcome.game as { subject: number }).subject
+    for (const m of cross('host-pic-1', [100, 200])) hostClient.send(m)
+    await eventOf(guestClient, 'stroke_end')
+    guestClient.send({ type: 'subject_set', subject: (first + 1) % 8, after: first })
+    expect((await eventOf(hostClient, 'subject_set')).body).toMatchObject({ after: first })
+    hostClient.send({ type: 'subject_set', subject: (first + 2) % 8, after: first }) // stale
+    await new Promise((r) => setTimeout(r, 150))
+    expect(hostClient.msgs.filter((m) => (m as any).type === 'event' && (m as any).body?.type === 'subject_set')).toHaveLength(1)
+    hostClient.ws.close()
+    guestClient.ws.close()
+  })
+
+  it('refuses a picture message in a topic room', async () => {
+    const host = await supabase.signInAnonymously()
+    const created = await api('/rooms', host, { game: 'topic' })
+    const client = await connect(created.json!.code, created.json!.ticket)
+    await client.waitFor((m) => (m as { type: string }).type === 'welcome')
+    client.send({ type: 'subject_set', subject: 1, after: 0 })
+    await client.waitFor((m) => (m as any).type === 'error' && (m as any).code === 'bad_message')
+    client.ws.close()
   })
 })

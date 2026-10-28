@@ -1,0 +1,52 @@
+-- Game modes. A room is a free canvas (or a lesson, via lesson_slug) unless it was made for a game.
+-- Separate from `mode`, which is about who can find the room (friends, live, quick), not what is played.
+--   free   a blank canvas, or a lesson when lesson_slug is set
+--   topic  both people get a prompt to draw together
+--   turns  pass the pen: one stroke each, in turn
+--   halves one picture split down the middle, a half each
+
+alter table rooms add column game text not null default 'free'
+  check (game in ('free', 'topic', 'turns', 'halves'));
+
+-- create_room gains a second argument. The old one-argument version goes, or PostgREST could not
+-- tell the two apart.
+drop function create_room(text);
+
+create or replace function create_room(p_lesson_slug text default null, p_game text default 'free')
+returns rooms language plpgsql security definer set search_path = public as $$
+declare
+  uid uuid := auth.uid();
+  r rooms;
+  tries int := 0;
+begin
+  if uid is null then raise exception 'not_authenticated' using errcode = '28000'; end if;
+  if p_lesson_slug is not null and p_lesson_slug !~ '^[a-z0-9-]{1,64}$' then
+    raise exception 'bad_lesson' using errcode = 'P0001';
+  end if;
+  if p_game is null or p_game not in ('free', 'topic', 'turns', 'halves') then
+    raise exception 'bad_game' using errcode = 'P0001';
+  end if;
+  if p_game <> 'free' and p_lesson_slug is not null then
+    raise exception 'bad_game' using errcode = 'P0001';   -- a lesson and a game are different things
+  end if;
+  if (select count(*) from rooms where host_id = uid and status in ('open','active')
+        and expires_at > now()) >= 3 then
+    raise exception 'too_many_rooms' using errcode = 'P0001';
+  end if;
+  loop
+    begin
+      insert into rooms (code, host_id, lesson_slug, game)
+      values (gen_room_code(), uid, p_lesson_slug, p_game)
+      returning * into r;
+      exit;
+    exception when unique_violation then
+      tries := tries + 1;
+      if tries >= 5 then raise; end if;
+    end;
+  end loop;
+  insert into room_members (room_id, user_id, role) values (r.id, uid, 'host');
+  return r;
+end $$;
+
+revoke all on function create_room(text, text) from public, anon;
+grant execute on function create_room(text, text) to authenticated;

@@ -64,6 +64,29 @@ export const lessonStateSchema = z.object({
 })
 export type LessonState = z.infer<typeof lessonStateSchema>
 
+// ---- game modes ---------------------------------------------------------------
+// A room is a free canvas (or a lesson, see above) unless it was made for a game. The game is fixed when
+// the room is made. `topic`: both people get a prompt to draw together, and either can ask for a new one.
+// `turns` (pass the pen): people alternate, one stroke each, and the room enforces whose turn it is.
+// `halves`: one symmetric picture, split down the middle. Seat 1 draws the left half and seat 2 the right
+// half, and the room keeps each person's lines on their own side.
+
+export const gameKindSchema = z.enum(['free', 'topic', 'turns', 'halves'])
+export type GameKind = z.infer<typeof gameKindSchema>
+
+const slotSchema = z.union([z.literal(1), z.literal(2)])
+export type Slot = z.infer<typeof slotSchema>
+
+export const gameStateSchema = z.discriminatedUnion('kind', [
+  /** `topic` is an index into the shared list of topics. */
+  z.object({ kind: z.literal('topic'), topic: z.number().int().min(0).max(999) }),
+  /** `turn` is the seat (1 or 2) whose turn it is to draw. */
+  z.object({ kind: z.literal('turns'), turn: slotSchema }),
+  /** `subject` is an index into the list of two-halves pictures. */
+  z.object({ kind: z.literal('halves'), subject: z.number().int().min(0).max(999) }),
+])
+export type GameState = z.infer<typeof gameStateSchema>
+
 // ---- client -> server -------------------------------------------------------
 
 export const clientMessageSchema = z.discriminatedUnion('type', [
@@ -92,6 +115,13 @@ export const clientMessageSchema = z.discriminatedUnion('type', [
     restart: z.boolean().optional(),
   }),
   z.object({ type: z.literal('step_result'), step: z.number().int().min(0).max(99), result: stepResultSchema }),
+  /** Topic room: ask for another topic. `after` is the topic you were looking at, so two people pressing
+   *  "new topic" together change it once. The canvas is cleared. */
+  z.object({ type: z.literal('topic_set'), topic: z.number().int().min(0).max(999), after: z.number().int().min(0).max(999) }),
+  /** Pass-the-pen room: give the pen to the other person without drawing. */
+  z.object({ type: z.literal('pass') }),
+  /** Two-halves room: ask for another picture. Works like `topic_set`: `after` is the picture you were looking at, and the canvas is cleared. */
+  z.object({ type: z.literal('subject_set'), subject: z.number().int().min(0).max(999), after: z.number().int().min(0).max(999) }),
 ])
 export type ClientMessage = z.infer<typeof clientMessageSchema>
 
@@ -100,7 +130,7 @@ export type ClientMessage = z.infer<typeof clientMessageSchema>
 export const playerSchema = z.object({
   id: z.string(),
   name: z.string(),
-  slot: z.union([z.literal(1), z.literal(2)]),
+  slot: slotSchema,
 })
 export type Player = z.infer<typeof playerSchema>
 
@@ -115,7 +145,7 @@ export const strokeSchema = z.object({
 })
 export type Stroke = z.infer<typeof strokeSchema>
 
-export const serverErrorCodes = ['room_full', 'room_not_found', 'bad_message', 'rate_limited', 'unauthorized'] as const
+export const serverErrorCodes = ['room_full', 'room_not_found', 'bad_message', 'rate_limited', 'unauthorized', 'not_your_turn'] as const
 
 /** Largest WebSocket text frame the room accepts. 64 points is about 2 KB, so this is generous. */
 export const MAX_MESSAGE_BYTES = 16 * 1024
@@ -129,6 +159,8 @@ export const serverMessageSchema = z.discriminatedUnion('type', [
     /** Strokes someone is drawing right now, with the points so far. Later points and the end come as events. */
     open: z.array(strokeSchema).optional(),
     lesson: lessonStateSchema.nullable(),
+    /** The game this room was made for, with its state. Absent or null for a free canvas or a lesson. */
+    game: gameStateSchema.nullable().optional(),
     lastSeq: z.number().int().nonnegative(),
   }),
   z.object({ type: z.literal('peer_joined'), peer: playerSchema }),
@@ -140,6 +172,8 @@ export const serverMessageSchema = z.discriminatedUnion('type', [
     from: z.string(),
     body: clientMessageSchema,
   }),
+  // Pass-the-pen: whose turn it is now. Sent after every stroke, pass or undo that changes it.
+  z.object({ type: z.literal('turn'), slot: slotSchema }),
   // The host ended the room. The server closes the socket right after sending this.
   z.object({ type: z.literal('room_ended') }),
   z.object({ type: z.literal('error'), code: z.enum(serverErrorCodes) }),
@@ -156,6 +190,8 @@ export const lessonSlugSchema = z.string().regex(/^[a-z0-9-]{1,64}$/)
 
 export const createRoomRequestSchema = z.object({
   lessonSlug: lessonSlugSchema.optional(),
+  /** A game instead of a free canvas. Not together with a lesson. */
+  game: gameKindSchema.optional(),
   /** Cloudflare Turnstile token. Required for guests once the Worker has a Turnstile secret. */
   turnstileToken: z.string().min(1).max(2048).optional(),
 })
@@ -185,6 +221,7 @@ export const roomApiErrorSchema = z.object({ error: z.enum(roomApiErrorCodes) })
 export const roomJoinedSchema = z.object({
   code: roomCodeSchema,
   lessonSlug: lessonSlugSchema.nullable(),
+  game: gameKindSchema.default('free'),
   ticket: z.string(),
   /** Whether the caller is the host right now. Only the host can end the room. */
   isHost: z.boolean(),

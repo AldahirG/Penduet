@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { findLesson } from '@penduet/lessons'
+import { findLesson, lessons } from '@penduet/lessons'
 import { ToastProvider } from '../ui'
 import { Lesson } from './Lesson'
 import { Lessons } from './Lessons'
@@ -32,7 +32,7 @@ afterEach(() => window.localStorage.clear())
 describe('lessons list', () => {
   it('lists every lesson with a start link', () => {
     renderAt('/lessons')
-    expect(screen.getAllByRole('link', { name: /start/i })).toHaveLength(3)
+    expect(screen.getAllByRole('link', { name: /start/i })).toHaveLength(lessons.length)
     expect(screen.getByRole('heading', { name: 'Straight lines' })).toBeInTheDocument()
   })
 
@@ -46,7 +46,7 @@ describe('lessons list', () => {
   it('ignores damaged progress data', () => {
     window.localStorage.setItem('penduet.progress.v1', '{not json')
     renderAt('/lessons')
-    expect(screen.getAllByRole('link', { name: /start/i })).toHaveLength(3)
+    expect(screen.getAllByRole('link', { name: /start/i })).toHaveLength(lessons.length)
   })
 })
 

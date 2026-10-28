@@ -1,4 +1,4 @@
-import { findLesson } from '@penduet/lessons'
+import { findLesson, lessons } from '@penduet/lessons'
 import { test, expect, along, canvasOf, drawPath, ink, stepsOf, traceStep } from './fixtures'
 
 const SLUG = 'straight-lines'
@@ -80,7 +80,7 @@ test.describe('F01 first lesson, F03 browse and draw a lesson (S05 S06 S07)', ()
     await page.evaluate(() => localStorage.setItem('penduet.progress.v1', '{"straight-lines": 5}'))
     await page.reload()
     await expect(page.getByRole('heading', { name: 'Lessons' })).toBeVisible()
-    await expect(page.getByRole('link', { name: 'Start' })).toHaveCount(3)
+    await expect(page.getByRole('link', { name: 'Start' })).toHaveCount(lessons.length)
   })
 
   test('F01-N1 a wrong drawing does not pass; Try again wipes it; Move on anyway counts the step as skipped', async ({ page }) => {

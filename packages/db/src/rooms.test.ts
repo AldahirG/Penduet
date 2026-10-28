@@ -9,7 +9,7 @@ afterAll(async () => {
   await db.close()
 })
 
-type Room = { id: string; code: string; status: string; host_id: string; capacity: number; lesson_slug: string | null }
+type Room = { id: string; code: string; status: string; host_id: string; capacity: number; lesson_slug: string | null; game: string }
 const create = async (uid: string, slug: string | null = null) =>
   (await asUser<Room>(db, uid, 'select * from create_room($1)', [slug]))[0]!
 const join = async (uid: string, code: string) =>
@@ -35,6 +35,28 @@ describe('create_room', () => {
     const host = await newGuest(db)
     expect((await create(host, 'straight-lines')).lesson_slug).toBe('straight-lines')
     await expect(create(host, 'Not A Slug!')).rejects.toThrow(/bad_lesson/)
+  })
+
+  it('makes free rooms by default and keeps the game it was made for', async () => {
+    const host = await newGuest(db)
+    expect((await create(host)).game).toBe('free')
+    const game = async (g: string, slug: string | null = null) =>
+      (await asUser<Room>(db, host, 'select * from create_room($1, $2)', [slug, g]))[0]!
+    await db.exec('delete from rooms')
+    expect((await game('topic')).game).toBe('topic')
+    expect((await game('turns')).game).toBe('turns')
+    await db.exec('delete from rooms')
+    expect((await game('halves')).game).toBe('halves')
+  })
+
+  it('refuses an unknown game, and a game together with a lesson', async () => {
+    const host = await newGuest(db)
+    const game = (g: string | null, slug: string | null = null) =>
+      asUser<Room>(db, host, 'select * from create_room($1, $2)', [slug, g])
+    await expect(game('battle-royale')).rejects.toThrow(/bad_game/)
+    await expect(game(null)).rejects.toThrow(/bad_game/)
+    await expect(game('turns', 'straight-lines')).rejects.toThrow(/bad_game/)
+    expect((await game('free', 'straight-lines'))[0]!.game).toBe('free')
   })
 
   it('allows 3 live rooms per host and refuses the 4th', async () => {

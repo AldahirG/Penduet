@@ -8,7 +8,7 @@ const NOW = 1_800_000_000
 describe('tickets', () => {
   it('round-trips the claims', async () => {
     const ticket = await signTicket(SECRET, claims, NOW)
-    expect(await verifyTicket(SECRET, ticket, NOW + 5)).toEqual({ ...claims, exp: NOW + 60 })
+    expect(await verifyTicket(SECRET, ticket, NOW + 5)).toEqual({ ...claims, game: 'free', exp: NOW + 60 })
   })
 
   it('expires after 60 seconds', async () => {

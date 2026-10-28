@@ -1,3 +1,4 @@
+import { findLesson } from '@penduet/lessons'
 import {
   MAX_POINTS_PER_MESSAGE,
   PING_FRAME,
@@ -5,6 +6,7 @@ import {
   WS_SUBPROTOCOL,
   serverMessageSchema,
   type ClientMessage,
+  type GameState,
   type LessonState,
   type Player,
   type Point,
@@ -32,6 +34,8 @@ export interface RoomState {
   peerDrawing: boolean
   /** The lesson both people are drawing, with its current step and what has been checked. Null in a free room. */
   lesson: LessonState | null
+  /** The game this room is playing (a topic, or pass the pen) and where it stands. Null in a free room or a lesson. */
+  game: GameState | null
 }
 
 export interface RoomSocketDeps {
@@ -52,7 +56,7 @@ const PEER_DRAWING_MS = 700
 const BACKOFF_BASE_MS = 500
 const BACKOFF_MAX_MS = 10_000
 
-const initial: RoomState = { status: 'connecting', you: null, peer: null, peerLeft: false, peerDrawing: false, lesson: null }
+const initial: RoomState = { status: 'connecting', you: null, peer: null, peerLeft: false, peerDrawing: false, lesson: null, game: null }
 
 /**
  * One person's connection to one room. Drawing is optimistic: the canvas updates at once and the
@@ -184,7 +188,10 @@ export class RoomSocket {
       case 'welcome':
         this.attempts = 0
         this.deps.board.load(msg.strokes, msg.open)
-        this.set({ status: 'live', you: msg.you, peer: msg.peer, peerLeft: false, lesson: msg.lesson })
+        this.set({ status: 'live', you: msg.you, peer: msg.peer, peerLeft: false, lesson: msg.lesson, game: msg.game ?? null })
+        return
+      case 'turn':
+        if (this.state.game?.kind === 'turns') this.set({ game: { kind: 'turns', turn: msg.slot } })
         return
       case 'peer_joined':
         return this.set({ peer: msg.peer, peerLeft: false })
@@ -194,12 +201,14 @@ export class RoomSocket {
         return this.set({ status: 'ended' })
       case 'error':
         if (msg.code === 'room_full') this.set({ status: 'full' })
+        // Out of turn: what is on this screen no longer matches the room. Take its snapshot again.
+        if (msg.code === 'not_your_turn') this.connect()
         return // rate_limited, bad_message: nothing useful to show
       case 'event': {
         const b = msg.body
-        // Lesson steps are decided by the room's order, so even your own are applied when they come back.
+        // Lesson steps and topics are decided by the room's order, so even your own are applied when they come back.
         // Everything else you did is already on your canvas.
-        if (msg.from === this.state.you?.id && b.type !== 'lesson_set' && b.type !== 'step_result') return
+        if (msg.from === this.state.you?.id && b.type !== 'lesson_set' && b.type !== 'step_result' && b.type !== 'topic_set' && b.type !== 'subject_set') return
         if (b.type === 'stroke_start') {
           this.deps.board.start(msg.from, { id: b.id, tool: b.tool, color: b.color, size: b.size })
           this.sawPeerDraw()
@@ -211,6 +220,8 @@ export class RoomSocket {
         else if (b.type === 'clear') this.deps.board.clear()
         else if (b.type === 'lesson_set') this.applyLessonSet(b.slug, b.step, b.restart === true)
         else if (b.type === 'step_result') this.applyStepResult(b.step, b.result)
+        else if (b.type === 'topic_set') this.applyTopicSet(b.topic, b.after)
+        else if (b.type === 'subject_set') this.applySubjectSet(b.subject, b.after)
         return
       }
     }
@@ -227,8 +238,24 @@ export class RoomSocket {
       results[step] = null
       this.set({ lesson: { ...l, result: null, results } })
     } else {
+      // A new step starts on a clean canvas, like the room does; after the last step the drawing stays.
+      if (step < (findLesson(slug)?.steps.length ?? 0)) this.deps.board.clear()
       this.set({ lesson: { ...l, step, from: this.deps.board.strokeCount, result: null } })
     }
+  }
+
+  private applyTopicSet(topic: number, after: number): void {
+    const g = this.state.game
+    if (!g || g.kind !== 'topic' || g.topic !== after) return
+    this.deps.board.clear()
+    this.set({ game: { kind: 'topic', topic } })
+  }
+
+  private applySubjectSet(subject: number, after: number): void {
+    const g = this.state.game
+    if (!g || g.kind !== 'halves' || g.subject !== after) return
+    this.deps.board.clear()
+    this.set({ game: { kind: 'halves', subject } })
   }
 
   private applyStepResult(step: number, result: StepResult): void {
@@ -264,10 +291,36 @@ export class RoomSocket {
   sendEnd(id: string): void {
     this.flushNow()
     this.send({ type: 'stroke_end', id })
+    this.giveTurn('away') // one stroke per turn: the pen goes to the other person, as the room will confirm
   }
 
   sendUndo(): void {
     this.send({ type: 'undo' })
+    this.giveTurn('me') // taking your stroke back gives you the pen again
+  }
+
+  /** Pass the pen without drawing. */
+  sendPass(): void {
+    this.send({ type: 'pass' })
+    this.giveTurn('away')
+  }
+
+  /** Ask for another topic. `after` is the one you are looking at, so two people asking at once change it once. */
+  sendTopicSet(topic: number, after: number): void {
+    this.send({ type: 'topic_set', topic, after })
+  }
+
+  /** Ask for another two-halves picture. `after` is the one you are looking at. */
+  sendSubjectSet(subject: number, after: number): void {
+    this.send({ type: 'subject_set', subject, after })
+  }
+
+  /** Pass the pen, here and now. The room's `turn` message confirms it, or corrects it. */
+  private giveTurn(to: 'me' | 'away'): void {
+    const g = this.state.game
+    const slot = this.state.you?.slot
+    if (!g || g.kind !== 'turns' || !slot) return
+    this.set({ game: { kind: 'turns', turn: to === 'me' ? slot : slot === 1 ? 2 : 1 } })
   }
 
   /** Go to step `step` of the room's lesson. With `restart`, start the current step over (clears its strokes). */
