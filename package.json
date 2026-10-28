@@ -1,6 +1,7 @@
 {
   "name": "penduet",
   "private": true,
+  "license": "UNLICENSED",
   "version": "0.0.0",
   "description": "Co-op drawing app: shared canvas, invite codes, guided lessons.",
   "scripts": {
@@ -12,7 +13,8 @@
     "test:e2e": "pnpm --filter @penduet/realtime test:e2e",
     "db:push": "npx supabase db push",
     "dev:local": "pnpm --parallel -r dev:local",
-    "test:ui": "playwright test"
+    "test:ui": "playwright test",
+    "preflight": "node scripts/preflight.mjs"
   },
   "engines": {
     "node": ">=20.19"

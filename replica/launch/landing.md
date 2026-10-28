@@ -29,7 +29,6 @@ Screenshots are real: two people drawing in a room, captured from the running ap
 
 ## To do before this goes public
 
-- A real logo and social image (brief in `brand.md`). The favicon is a stand-in.
-- A privacy policy and terms page, linked from the footer. There is no footer yet.
-- Remove the "Design" link from the navigation: it is the internal style guide.
+- A real logo and social image (brief in `brand.md`; five concepts in `replica/design/logo/`). The favicon is a stand-in.
+- Done 2026-10-27: a footer with Privacy, Terms and "Send feedback" (see `legal-notes.md`); the "Design" link is gone from the navigation and the page is development-only; the Price section and the first FAQ answer now say "this first version has no ads" and that ads or a paid extra may come later, announced first. The hero line and the "Nothing is locked" card still say "no ads": they are true now, and must be edited the day ads come.
 - Replace "Penduet" in the page if the name changes.

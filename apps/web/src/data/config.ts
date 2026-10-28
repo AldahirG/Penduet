@@ -12,3 +12,7 @@ export const toWsUrl = (httpUrl: string) => httpUrl.replace(/^http/, 'ws')
 
 /** Cloudflare Turnstile site key (public). Empty means no human check is shown. */
 export const TURNSTILE_SITE_KEY: string = import.meta.env.VITE_TURNSTILE_SITE_KEY ?? ''
+
+/** Who runs the service and how to reach them, shown on the privacy and terms pages. Empty hides the line. */
+export const OPERATOR_NAME: string = import.meta.env.VITE_OPERATOR_NAME ?? ''
+export const CONTACT_EMAIL: string = import.meta.env.VITE_CONTACT_EMAIL ?? ''

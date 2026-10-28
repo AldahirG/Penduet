@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
+import { CONTACT_EMAIL } from '../data/config'
 import { cn, SegmentedControl } from '../ui'
 import { useTheme, type ThemeChoice } from '../theme'
 
@@ -8,7 +9,6 @@ const nav = [
   { to: '/together', label: 'Together' },
   { to: '/draw', label: 'Free draw' },
   { to: '/settings', label: 'Settings' },
-  { to: '/design', label: 'Design' },
 ]
 
 const themes: { value: ThemeChoice; label: string }[] = [
@@ -71,6 +71,22 @@ export function AppShell() {
       <main id="main" tabIndex={-1} className="mx-auto w-full max-w-content focus:outline-none px-4 py-8 md:px-8">
         <Outlet />
       </main>
+      <footer className="mx-auto flex w-full max-w-content flex-wrap items-center gap-x-6 gap-y-1 border-t border-line px-4 py-6 pb-24 text-sm text-muted sm:pb-6 md:px-8">
+        <span>Penduet · early version</span>
+        <nav aria-label="Legal" className="flex flex-wrap gap-x-4">
+          <Link className="inline-flex min-h-touch min-w-touch items-center justify-center underline" to="/privacy">
+            Privacy
+          </Link>
+          <Link className="inline-flex min-h-touch min-w-touch items-center justify-center underline" to="/terms">
+            Terms
+          </Link>
+          {CONTACT_EMAIL ? (
+            <a className="inline-flex min-h-touch min-w-touch items-center justify-center underline" href={`mailto:${CONTACT_EMAIL}`}>
+              Send feedback
+            </a>
+          ) : null}
+        </nav>
+      </footer>
       <nav aria-label="Main (compact)" className="fixed inset-x-0 bottom-0 z-20 flex h-tabbar border-t border-line bg-bg sm:hidden">
         {nav.map((n) => (
           <NavLink

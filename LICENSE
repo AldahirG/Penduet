@@ -1,0 +1,15 @@
+Copyright (c) 2026 the Penduet authors. All rights reserved.
+
+This repository is not open source. The source code, the lesson content and scoring rules, the
+design, the name and the logo are proprietary.
+
+No licence is granted to copy, modify, merge, publish, distribute, sublicense, sell or build a
+competing service from any part of them, or to use them to train or evaluate other software,
+without the written permission of the copyright holder. Having access to the files, for example
+as a collaborator, does not change this.
+
+The hosted service is a separate matter: its terms of use (apps/web/src/pages/Legal.tsx, served
+at /terms) let people use the service for free for personal, recreational purposes.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED. TO THE EXTENT
+THE LAW ALLOWS, THE AUTHORS ARE NOT LIABLE FOR ANY CLAIM OR DAMAGES ARISING FROM IT.

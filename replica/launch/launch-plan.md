@@ -15,12 +15,14 @@ Each is a thing that stops a launch if it is not true. Most are in other files.
 | The name is cleared (trademark in the US, EU, Canada; Google Play; handles) | **not done** | `brand.md`, "Checks" |
 | Runs on a real Supabase project and a real Cloudflare account, with two real devices | **not done** | `backend.md`; test plan M-2 and M-4 |
 | Deployed on your own domain, with backups on, Turnstile on, `ALLOWED_ORIGINS` set | **not done** | `/replica-deploy` |
-| Privacy policy and terms, listing every processor (today: Supabase, Cloudflare) | **not written** | `backend.md`, checklist |
+| Privacy policy and terms, listing every processor (today: Supabase, Cloudflare) | **written, built, linked from the footer** (a lawyer should read them; operator name and contact address still to set) | `legal-notes.md` |
 | The lessons have been drawn by real hands, and the scoring thresholds adjusted | **not done** | `parity.md`, build item 1 |
 | A way to report and block a person | **not built** (the table exists) | `fixes.md`, fix 4. Invite-only rooms lower the risk, which is why it is not a hard gate for a first small launch, but it is one before any public promotion |
-| The pricing decision (stay free, or Plus) | **open** | `pricing.md`, "Decisions" |
-| Logo, social image, app icon | **not made** (brief written) | `brand.md` |
-| The "Design" link removed from the navigation, the project folder renamed, a footer with the policy links | **not done** | `landing.md` |
+| The pricing decision (stay free, or Plus) | **decided for v1: free, no ads; ads may come later, announced first** | `pricing.md` |
+| Logo, social image, app icon | **five concepts drawn, none chosen** (`replica/design/logo/index.html`); social image and app icon wait for the choice | `brand.md` |
+| The "Design" link removed from the navigation, a footer with the policy links | **done** (the `/design` page now exists only in development builds) | `landing.md` |
+| The project folder renamed | **not done** (close the session, rename `ArtWorkout` to the product name) | `brand.md` |
+| Playtest kit and a preflight check | **written** (`pnpm preflight`, `playtest.md`) | `playtest.md` |
 
 ## Before launch
 
@@ -54,7 +56,7 @@ What the research supports, and what it does not:
 
 > Penduet: draw on one canvas with a friend. You open a room, send a six-character code, and you see each other's lines live. Every person in a room is a real person who got the code: no bots, no ads, no energy meter. Web app, no account. It is early: two-person rooms, three lessons, nothing paid.
 
-Be ready for: "how is this different from PairDrawing" (a real, existing app in the same niche: the answer is lessons you do together, no ads, and the web; check the claim against the app before posting), "is it open source", "how do you make money" (answer from `pricing.md`, honestly: it does not yet).
+Be ready for: "how is this different from PairDrawing" (a real, existing app in the same niche: the answer is lessons you do together, no ads, and the web; check the claim against the app before posting), "is it open source" (no: the code is private and all rights are reserved; the service is free for personal use, see `legal-notes.md`), "how do you make money" (answer from `pricing.md`, honestly: it does not yet).
 
 ## The first ten users to talk to
 

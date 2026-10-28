@@ -40,7 +40,7 @@ const features = [
 const faq = [
   {
     q: 'Is it really free?',
-    a: 'Everything in Penduet today is free: lessons, rooms, tools and saving a picture. If something costs us real money later, such as storing a gallery of your drawings, it may come as an optional plan. The free parts stay free, and you will be able to cancel in one click.',
+    a: 'Yes. Everything in Penduet today is free, for personal use: lessons, rooms, tools and saving a picture, with no ads. Later versions may add ads or an optional paid plan to cover running costs. We would announce that first, and a paid plan would always be optional and cancel in one click.',
   },
   {
     q: 'Do I need an account?',
@@ -156,8 +156,9 @@ export function Home() {
           Price: nothing
         </h2>
         <p className="text-muted">
-          Penduet is free. There are no ads, no energy and no trial that turns into a charge. If we ever add something that costs us real
-          money to run, it will be optional, it will say its price before you start, and you will cancel it in one click.
+          Penduet is free. This first version has no ads, no energy and no trial that turns into a charge. If that changes later, for
+          example ads or an optional paid extra to help pay for the servers, we will announce it here first and update the privacy policy
+          before it starts. Anything paid will show its price before you commit, and you will cancel it in one click.
         </p>
       </section>
 

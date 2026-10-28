@@ -5,6 +5,7 @@ import { Draw } from './pages/Draw'
 import { Home } from './pages/Home'
 import { Lesson } from './pages/Lesson'
 import { Lessons } from './pages/Lessons'
+import { Privacy, Terms } from './pages/Legal'
 import { NotFound } from './pages/NotFound'
 import { Room } from './pages/Room'
 import { Settings } from './pages/Settings'
@@ -21,7 +22,10 @@ export function App() {
         <Route path="lesson/:slug" element={<Lesson />} />
         <Route path="draw" element={<Draw />} />
         <Route path="settings" element={<Settings />} />
-        <Route path="design" element={<Design />} />
+        <Route path="privacy" element={<Privacy />} />
+        <Route path="terms" element={<Terms />} />
+        {/* The internal style guide: reachable while developing, not in a production build. */}
+        {import.meta.env.DEV ? <Route path="design" element={<Design />} /> : null}
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>

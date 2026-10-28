@@ -1,6 +1,7 @@
 {
   "name": "@penduet/db",
   "private": true,
+  "license": "UNLICENSED",
   "version": "0.0.0",
   "type": "module",
   "description": "Tests for supabase/migrations: room functions, row level security, cleanup jobs.",

@@ -52,6 +52,29 @@ Not confusingly close to the original (ArtWorkout): no "Art", no "Workout", no s
 
 "No" for a domain means the registry said it is not registered today. It does not mean it can be bought for a normal price (a registered-but-parked name, or a premium name, would show differently at a registrar). Check at a registrar before relying on it.
 
+## More names, screened again (2026-10-27)
+
+The owner asked for more ideas. Fifty names in total were run through the same four screens: `.com` (Verisign RDAP), `.app` (Google registry RDAP), an exact-name search in the US App Store (iTunes search API) and a GitHub user of that name. Trademark, Google Play and social handles were **not** run for any of them.
+
+**Clear on all four screens** (nothing registered, no app that starts with the name, no GitHub user):
+
+| name | idea | note |
+| --- | --- | --- |
+| **Penduet** | pen + duet | the current working name |
+| **Tandoodle** | tandem + doodle | playful; says "two" through "tandem"; sounds like a children's product |
+| **Alongsketch** | sketch along with someone | reads as a phrase, a bit long |
+| **Quadhand** | four hands, one canvas | short and odd; could sound like a robot or a sport |
+| **Scribbleduo** | scribble + duo | clear, but "duo" is near a very big language app's naming |
+| **Quillduo** | quill + duo | same "duo" note; "quill" feels old-fashioned |
+| **Tandempen** | tandem + pen | descriptive, easy to say |
+| **Duetink** | duet + ink | close to Penduet in sound, so little gained |
+| **Pencolab** | pen + collaboration | clear, but "colab" is a generic word in software |
+| **Duetpen** | duet + pen | the same two words as Penduet in the other order; too close to be a real alternative |
+
+Taken on at least one screen, so cut: Fourhands, Crosshatch, Hatchmate, Duoink, Sidelines, Inkling, Inklet, Tracepal, Handinhand, Coscribe, Marginalia, Cohatch, Inkmeet, Inkshare, Twinline (an app of that name exists), and many others whose `.com` was registered. Two apps in the same niche turned up while checking: **CoSketch** ("Drawing Together") and **PairDrawing**; stay away from names near them.
+
+The pick, if it were mine: keep **Penduet** unless the "-uet" spelling bothers you in testing (people mishear it as "Penduette"), and otherwise **Tandoodle** or **Tandempen** as the alternatives. Say a name aloud to someone who has never seen it, and ask them to type it: that is the test that matters.
+
 ## Palette
 
 Replaces the placeholder (warm paper and indigo) in `replica/design/tokens.json` and `tokens.dark.json`. Same role names; only values changed. Regenerated into the app with `pnpm tokens`.

@@ -63,8 +63,14 @@ Do not build this until a decision is made. When it is:
   - Webhooks, with signature checks and idempotency (`webhook_events` already exists): `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_failed`. See `backend.md`.
 - **In the iOS and Android apps, digital purchases normally have to use the stores' own billing**, with a different price and a fee. A web plan and an app plan are two systems. The product is a web app for now, so this does not apply yet.
 
+## Decision, 2026-10-27
+
+**The first version is free, with no ads.** Ads may be added later, announced first on the site and in the privacy policy; this was the owner's call. That replaces the earlier plan to keep "the free parts stay free" as a promise: ads change the free experience, so the landing page, the terms and the policy now say "this first version has no ads" instead of "never". The Plus tier below is still a possible later option, not a plan.
+
+Things to hold on to if ads come: the original's reviewers hate ads that gate access (238 of 920 reviews mention ads, many of them ads to earn energy). An ad that blocks drawing, or that has to be watched to continue, breaks the angle in `fixes.md`. If ads come, keep them out of the room and out of lessons, and decide it before choosing a network. The checklist for the day is in `legal-notes.md`.
+
 ## Decisions for you
 
-1. Charge at all, or stay free and find another way to pay for servers (a donation link, a sponsor, a school licence)? The word "free" is in the headline of the angle. It must stay true.
+1. ~~Charge at all?~~ Decided for now: free first version. Still open: how to pay for servers later: ads (decided as possible), a donation link, a sponsor, a school licence, or Plus.
 2. If Plus: is a gallery, bigger groups and lesson packs the right content, and is $3 / $30 the right test?
 3. Who counts as an adult when someone pays?
