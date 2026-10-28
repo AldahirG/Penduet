@@ -1,6 +1,7 @@
 import { useId } from 'react'
 import { Check } from 'lucide-react'
 import type { PaletteColor } from '../drawing/palette'
+import { tDyn, useT } from '../i18n'
 import { cn } from './cn'
 
 export interface ColourPickerProps {
@@ -11,16 +12,17 @@ export interface ColourPickerProps {
 }
 
 /** Radio group of swatches. Each swatch has a name so the choice is never colour alone. */
-export function ColourPicker({ colours, value, onChange, label = 'Brush colour' }: ColourPickerProps) {
+export function ColourPicker({ colours, value, onChange, label }: ColourPickerProps) {
+  const { t } = useT()
   const name = useId()
   return (
-    <div role="radiogroup" aria-label={label} className="flex flex-wrap gap-1">
+    <div role="radiogroup" aria-label={label ?? t('tool.colour')} className="flex flex-wrap gap-1">
       {colours.map((c) => {
         const selected = c.value === value
         return (
           <label
             key={c.value}
-            title={c.name}
+            title={tDyn(`colour.${c.name}`, c.name)}
             className="grid h-touch w-touch cursor-pointer place-items-center rounded-md has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent"
           >
             <input
@@ -29,7 +31,7 @@ export function ColourPicker({ colours, value, onChange, label = 'Brush colour' 
               value={c.value}
               checked={selected}
               onChange={() => onChange(c.value)}
-              aria-label={c.name}
+              aria-label={tDyn(`colour.${c.name}`, c.name)}
               className="sr-only"
             />
             <span

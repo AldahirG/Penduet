@@ -4,6 +4,7 @@ import { loadDrawing, saveDrawing } from '../data/autosave'
 import { Board } from '../drawing/board'
 import { DrawingCanvas } from '../drawing/DrawingCanvas'
 import { CANVAS_BOX } from '../drawing/layout'
+import { useT } from '../i18n'
 import { useCanUndo, useMediaQuery, useSavePicture } from '../drawing/hooks'
 import { BRUSH_SIZES, DEFAULT_PALETTE } from '../drawing/palette'
 import { Button, DrawingToolbar, type DrawingTool } from '../ui'
@@ -13,7 +14,8 @@ const ME = 'me'
 
 // S19 Free draw: a blank canvas on this device. Nothing is sent anywhere.
 export function Draw() {
-  usePageTitle('Free draw')
+  const { t } = useT()
+  usePageTitle(t('title.freeDraw'))
   const [board] = useState(() => {
     const b = new Board()
     b.load(loadDrawing())
@@ -44,10 +46,10 @@ export function Draw() {
     <section aria-labelledby="draw-title" className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 id="draw-title" className="font-display text-xl font-bold">
-          Free draw
+          {t('nav.draw')}
         </h1>
         <Button variant="secondary" icon={<Download aria-hidden="true" className="h-4 w-4" />} onClick={() => save('drawing')}>
-          Save as image
+          {t('common.saveImage')}
         </Button>
       </div>
       <div className="flex flex-col-reverse gap-3 md:flex-row md:items-start">
@@ -67,7 +69,7 @@ export function Draw() {
           <DrawingCanvas board={board} authorId={ME} tool={tool} color={color} size={size} onEngine={onEngine} />
         </div>
       </div>
-      <p className="text-sm text-muted">Mouse, finger or pen. Your drawing is kept on this device, so a refresh does not lose it.</p>
+      <p className="text-sm text-muted">{t('draw.hint')}</p>
     </section>
   )
 }

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { TURNSTILE_SITE_KEY } from '../data/config'
+import { useT } from '../i18n'
 
 // Cloudflare Turnstile: a small human check, shown only when a site key is configured. The Worker
 // asks guests for the token before it opens a room (see replica/backend.md). A token works once.
@@ -42,6 +43,7 @@ export interface TurnstileProps {
 }
 
 export function Turnstile({ siteKey = TURNSTILE_SITE_KEY, onToken, resetKey = 0 }: TurnstileProps) {
+  const { t } = useT()
   const box = useRef<HTMLDivElement>(null)
   const widget = useRef<string | null>(null)
   const emit = useRef(onToken)
@@ -80,7 +82,7 @@ export function Turnstile({ siteKey = TURNSTILE_SITE_KEY, onToken, resetKey = 0 
   return (
     <div>
       <div ref={box} />
-      {failed ? <p className="text-sm text-danger">The human check could not load. Check your connection and reload the page.</p> : null}
+      {failed ? <p className="text-sm text-danger">{t('captcha.failed')}</p> : null}
     </div>
   )
 }

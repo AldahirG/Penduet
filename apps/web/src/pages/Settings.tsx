@@ -2,26 +2,48 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ROOMS_ARE_LIVE } from '../data/rooms'
 import { NAME_MAX, ProfileError, cleanName, deleteMyAccount, getMyProfile, renameMe } from '../data/profile'
+import { LANGS, useLang, useT, type Lang } from '../i18n'
 import { usePageTitle } from '../usePageTitle'
-import { Button, Modal, Spinner, TextInput, useToast } from '../ui'
+import { Button, Modal, SegmentedControl, Spinner, TextInput, useToast } from '../ui'
 
 // S20 Settings: your name in rooms, and deleting your data. Theme lives in the header.
 export function Settings() {
-  usePageTitle('Settings')
+  const { t } = useT()
+  usePageTitle(t('title.settings'))
   if (!ROOMS_ARE_LIVE) {
     return (
       <section className="flex max-w-xl flex-col gap-3">
-        <h1 className="font-display text-xl font-bold">Settings</h1>
-        <p className="text-muted">
-          Your name and your data live in the backend, which is not configured in this build. Free drawing and lessons work without it.
-        </p>
+        <h1 className="font-display text-xl font-bold">{t('settings.title')}</h1>
+        <LanguageSection />
+        <p className="text-muted">{t('settings.noBackend')}</p>
       </section>
     )
   }
   return <SettingsForm />
 }
 
+function LanguageSection() {
+  const { t, lang } = useT()
+  const [, setLang] = useLang()
+  return (
+    <section aria-labelledby="lang-title" className="flex flex-col gap-2">
+      <h2 id="lang-title" className="font-display text-lg font-semibold">
+        {t('settings.langTitle')}
+      </h2>
+      <p className="text-muted">{t('settings.langText')}</p>
+      <SegmentedControl<Lang>
+        className="self-start"
+        label={t('lang.label')}
+        value={lang}
+        onChange={setLang}
+        options={LANGS.map((l) => ({ value: l, label: l === 'es' ? 'Español' : 'English' }))}
+      />
+    </section>
+  )
+}
+
 function SettingsForm() {
+  const { t } = useT()
   const toast = useToast()
   const navigate = useNavigate()
   const [loaded, setLoaded] = useState<{ name: string; isGuest: boolean } | null>(null)
@@ -49,16 +71,16 @@ function SettingsForm() {
   const save = async (e: FormEvent) => {
     e.preventDefault()
     const clean = cleanName(name)
-    if (!clean) return setError(`Use between 1 and ${NAME_MAX} characters.`)
+    if (!clean) return setError(t('settings.invalidName', { max: NAME_MAX }))
     setError(undefined)
     setSaving(true)
     try {
       const saved = await renameMe(clean)
       setName(saved)
       setLoaded((l) => (l ? { ...l, name: saved } : l))
-      toast.show('Name saved. Your partner sees it the next time you join a room.', 'success')
+      toast.show(t('settings.saved'), 'success')
     } catch (err) {
-      setError(err instanceof ProfileError && err.code === 'invalid_name' ? `Use between 1 and ${NAME_MAX} characters.` : 'Could not save. Try again.')
+      setError(err instanceof ProfileError && err.code === 'invalid_name' ? t('settings.invalidName', { max: NAME_MAX }) : t('settings.saveFail'))
     }
     setSaving(false)
   }
@@ -67,10 +89,10 @@ function SettingsForm() {
     setDeleting(true)
     try {
       await deleteMyAccount()
-      toast.show('Your data is deleted.', 'success')
+      toast.show(t('settings.deleted'), 'success')
       navigate('/')
     } catch {
-      toast.show('Could not delete. Try again.', 'error')
+      toast.show(t('settings.deleteFail'), 'error')
       setDeleting(false)
       setConfirmDelete(false)
     }
@@ -79,29 +101,31 @@ function SettingsForm() {
   if (failed) {
     return (
       <section className="flex max-w-xl flex-col gap-3">
-        <h1 className="font-display text-xl font-bold">Settings</h1>
-        <p className="text-danger">Could not reach the service. Try again in a moment.</p>
+        <h1 className="font-display text-xl font-bold">{t('settings.title')}</h1>
+        <p className="text-danger">{t('settings.unreachable')}</p>
       </section>
     )
   }
   if (!loaded) {
     return (
       <p className="flex items-center gap-2 text-muted">
-        <Spinner /> Loading…
+        <Spinner /> {t('common.loading')}
       </p>
     )
   }
 
   return (
     <section className="flex max-w-xl flex-col gap-8">
-      <h1 className="font-display text-xl font-bold">Settings</h1>
+      <h1 className="font-display text-xl font-bold">{t('settings.title')}</h1>
+
+      <LanguageSection />
 
       <form onSubmit={save} className="flex flex-col gap-3" aria-labelledby="name-title">
         <h2 id="name-title" className="font-display text-lg font-semibold">
-          Your name
+          {t('settings.nameTitle')}
         </h2>
         <TextInput
-          label="Name shown in rooms"
+          label={t('settings.nameLabel')}
           value={name}
           maxLength={NAME_MAX}
           autoComplete="off"
@@ -110,32 +134,29 @@ function SettingsForm() {
             setError(undefined)
           }}
           error={error}
-          hint={loaded.isGuest ? 'You are drawing as a guest. This name is all anyone sees.' : undefined}
+          hint={loaded.isGuest ? t('settings.nameHint') : undefined}
         />
         <Button type="submit" loading={saving} disabled={name.trim() === loaded.name} className="self-start">
-          Save name
+          {t('settings.save')}
         </Button>
       </form>
 
       <section aria-labelledby="data-title" className="flex flex-col gap-3 paper p-5">
         <h2 id="data-title" className="font-display text-lg font-semibold">
-          Your data
+          {t('settings.dataTitle')}
         </h2>
-        <p className="text-muted">
-          Deleting removes your profile, the rooms you opened and your place in other rooms, for good. Drawings you saved to your device are
-          not touched.
-        </p>
+        <p className="text-muted">{t('settings.dataText')}</p>
         <Button variant="danger" onClick={() => setConfirmDelete(true)} className="self-start">
-          Delete my data
+          {t('settings.delete')}
         </Button>
       </section>
 
       <Modal
         open={confirmDelete}
         onOpenChange={setConfirmDelete}
-        title="Delete your data?"
-        description="This cannot be undone. A new guest profile is created the next time you open a room."
-        confirm={{ label: 'Delete', destructive: true, loading: deleting, onClick: remove }}
+        title={t('settings.deleteTitle')}
+        description={t('settings.deleteText')}
+        confirm={{ label: t('settings.deleteConfirm'), destructive: true, loading: deleting, onClick: remove }}
       />
     </section>
   )

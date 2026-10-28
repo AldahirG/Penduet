@@ -86,11 +86,14 @@ export type Slot = z.infer<typeof slotSchema>
 export const GUESS = {
   rouletteMs: 3500,
   countdownMs: 5000,
-  drawMs: 5000,
-  answerMs: 5000,
-  resultMs: 8000,
+  /** One burst of drawing. Four of them make a minute of drawing, like a round of Pictionary. */
+  drawMs: 15_000,
+  /** The one try after each burst: time to think, type and send. */
+  answerMs: 12_000,
+  /** The result: a moment of drums, the word, and a look at the drawing. */
+  resultMs: 13_000,
   /** How long a round waits for someone who dropped out (a page reload, a bad moment) before it is called off. */
-  graceMs: 8000,
+  graceMs: 10_000,
   intervals: 4,
   maxAnswerLength: 40,
 } as const
@@ -122,8 +125,8 @@ export const guessStateSchema = z.object({
   score: z.number().int().min(0),
   played: z.number().int().min(0),
   won: z.number().int().min(0),
-  /** The latest answer of this round, so the drawer can see what was tried. */
-  last: z.object({ text: z.string().max(GUESS.maxAnswerLength), correct: z.boolean() }).nullable(),
+  /** The latest answer of this round, so the drawer can see what was tried. `at` is the burst of drawing it followed. */
+  last: z.object({ text: z.string().max(GUESS.maxAnswerLength), correct: z.boolean(), at: z.number().int().min(0).max(9) }).nullable(),
   /** How the round ended, once it has. `interval` is the answer window it was guessed in. */
   result: z.object({ won: z.boolean(), interval: z.number().int().min(0).max(9).nullable(), points: z.number().int().min(0) }).nullable(),
 })

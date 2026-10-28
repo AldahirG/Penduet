@@ -3,6 +3,7 @@ export * from './score'
 export * from './topics'
 export * from './halves'
 export * from './words'
+export * from './i18n'
 export { mirror } from './shapes'
 
 import { lessons, type Lesson } from './content'

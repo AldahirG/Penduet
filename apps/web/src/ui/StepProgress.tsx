@@ -1,3 +1,4 @@
+import { useT } from '../i18n'
 import { cn } from './cn'
 
 export interface StepProgressProps {
@@ -8,19 +9,20 @@ export interface StepProgressProps {
 }
 
 export function StepProgress({ current, total, className }: StepProgressProps) {
+  const { t } = useT()
   const done = Math.max(0, Math.min(current - 1, total))
   return (
     <div className={cn('flex flex-col gap-2', className)}>
       <p className="text-sm font-semibold">
-        Step {Math.min(current, total)} of {total}
+        {t('step.of', { a: Math.min(current, total), b: total })}
       </p>
       <div
         role="progressbar"
-        aria-label="Lesson progress"
+        aria-label={t('step.progress')}
         aria-valuemin={0}
         aria-valuemax={total}
         aria-valuenow={done}
-        aria-valuetext={`${done} of ${total} steps finished`}
+        aria-valuetext={t('step.finished', { done, total })}
         className="flex gap-1"
       >
         {Array.from({ length: total }, (_, i) => (

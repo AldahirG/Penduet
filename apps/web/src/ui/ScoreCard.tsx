@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Star } from 'lucide-react'
+import { useT } from '../i18n'
 import { Button } from './Button'
 import { cn } from './cn'
 
@@ -53,6 +54,7 @@ function Stat({ label, value, good }: { label: string; value: number; good: bool
 }
 
 export function ScoreCard({ title, accuracy, smoothness, stars, passed, hint, onRetry, onNext }: ScoreCardProps) {
+  const { t } = useT()
   const heading = useRef<HTMLHeadingElement>(null)
   const shownAccuracy = useCountUp(accuracy)
   const shownSmoothness = useCountUp(smoothness)
@@ -65,7 +67,7 @@ export function ScoreCard({ title, accuracy, smoothness, stars, passed, hint, on
       <h2 id="score-title" ref={heading} tabIndex={-1} className="font-display text-lg font-semibold focus:outline-none">
         {title}
       </h2>
-      <p role="img" className="flex items-center gap-1" aria-label={`${stars} of 3 stars`}>
+      <p role="img" className="flex items-center gap-1" aria-label={t('score.stars', { n: stars })}>
         {[1, 2, 3].map((n) => (
           <Star
             key={n}
@@ -75,17 +77,17 @@ export function ScoreCard({ title, accuracy, smoothness, stars, passed, hint, on
         ))}
       </p>
       <div className="flex gap-6">
-        <Stat label="Accuracy" value={shownAccuracy} good={passed} />
-        <Stat label="Smoothness" value={shownSmoothness} good={false} />
+        <Stat label={t('score.accuracy')} value={shownAccuracy} good={passed} />
+        <Stat label={t('score.smoothness')} value={shownSmoothness} good={false} />
       </div>
       {hint ? <p className="text-muted">{hint}</p> : null}
       <div className="flex flex-wrap gap-2">
         {onRetry ? (
           <Button variant={passed ? 'secondary' : 'primary'} onClick={onRetry}>
-            Try again
+            {t('score.tryAgain')}
           </Button>
         ) : null}
-        {onNext && passed ? <Button onClick={onNext}>Next step</Button> : null}
+        {onNext && passed ? <Button onClick={onNext}>{t('score.nextStep')}</Button> : null}
       </div>
     </section>
   )

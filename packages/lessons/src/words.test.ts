@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isCorrectAnswer, normalizeAnswer, words } from './words'
+import { isCorrectAnswer, normalizeAnswer, wordIn, words } from './words'
 
 const id = (w: string) => words.findIndex((x) => x.word === w)
 
@@ -22,7 +22,24 @@ describe('draw and guess words', () => {
   })
 
   it('does not let one word answer for another', () => {
-    for (const a of words) for (const b of words) if (a !== b) expect(isCorrectAnswer(words.indexOf(a), b.word), `${b.word} for ${a.word}`).toBe(false)
+    for (const a of words)
+      for (const b of words)
+        if (a !== b) {
+          expect(isCorrectAnswer(words.indexOf(a), b.word), `${b.word} for ${a.word}`).toBe(false)
+          expect(isCorrectAnswer(words.indexOf(a), b.es), `${b.es} for ${a.word}`).toBe(false)
+        }
+  })
+
+  it('has a Spanish word for every word, none twice', () => {
+    const seen = new Set<string>()
+    for (const w of words) {
+      expect(w.es.length, w.word).toBeGreaterThan(1)
+      expect(wordIn(w, 'es')).toBe(w.es)
+      expect(wordIn(w, 'en')).toBe(w.word)
+      const key = normalizeAnswer(w.es)
+      expect(seen.has(key), `duplicate: ${w.es}`).toBe(false)
+      seen.add(key)
+    }
   })
 })
 
@@ -43,6 +60,15 @@ describe('checking an answer', () => {
     expect(isCorrectAnswer(cat, 'kitten')).toBe(true)
     expect(isCorrectAnswer(cat, 'cats')).toBe(true)
     expect(isCorrectAnswer(id('donut'), 'doughnut')).toBe(true)
+  })
+
+  it('accepts the answer in Spanish, with accents or without, with an article', () => {
+    expect(isCorrectAnswer(cat, 'gato')).toBe(true)
+    expect(isCorrectAnswer(cat, 'El Gato')).toBe(true)
+    expect(isCorrectAnswer(id('croissant'), 'cruasan')).toBe(true)
+    expect(isCorrectAnswer(id('rainbow'), 'arco iris')).toBe(true)
+    expect(isCorrectAnswer(id('house'), 'la casa')).toBe(true)
+    expect(isCorrectAnswer(cat, 'perro')).toBe(false)
   })
 
   it('forgives one mistyped letter in a longer word, but not in a short one', () => {

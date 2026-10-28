@@ -1,5 +1,6 @@
 import * as Dialog from '@radix-ui/react-dialog'
 import type { ReactNode } from 'react'
+import { useT } from '../i18n'
 import { Button } from './Button'
 
 export interface ModalProps {
@@ -14,7 +15,8 @@ export interface ModalProps {
 }
 
 /** Radix Dialog gives the focus trap, Esc to close, aria-modal and focus return. */
-export function Modal({ open, onOpenChange, title, description, children, confirm, cancelLabel = 'Cancel' }: ModalProps) {
+export function Modal({ open, onOpenChange, title, description, children, confirm, cancelLabel }: ModalProps) {
+  const { t } = useT()
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
@@ -29,7 +31,7 @@ export function Modal({ open, onOpenChange, title, description, children, confir
           {children}
           <div className="flex flex-wrap justify-end gap-2">
             <Dialog.Close asChild>
-              <Button variant="secondary">{cancelLabel}</Button>
+              <Button variant="secondary">{cancelLabel ?? t('common.cancel')}</Button>
             </Dialog.Close>
             {confirm ? (
               <Button variant={confirm.destructive ? 'danger' : 'primary'} loading={confirm.loading} onClick={confirm.onClick}>

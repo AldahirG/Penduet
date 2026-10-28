@@ -1,6 +1,7 @@
 import { useRef, useState, type KeyboardEvent } from 'react'
 import { Eraser, Pencil, Ruler, Trash2, Undo2 } from 'lucide-react'
 import { DEFAULT_PALETTE } from '../drawing/palette'
+import { useT } from '../i18n'
 import { cn } from './cn'
 import { ColourPicker } from './ColourPicker'
 import { IconButton } from './IconButton'
@@ -44,6 +45,7 @@ export function DrawingToolbar({
   clearCopy,
   orientation = 'horizontal',
 }: DrawingToolbarProps) {
+  const { t } = useT()
   const root = useRef<HTMLDivElement>(null)
   const [active, setActive] = useState(0)
   const [panel, setPanel] = useState<Panel>(null)
@@ -82,7 +84,7 @@ export function DrawingToolbar({
     <div
       ref={root}
       role="toolbar"
-      aria-label="Drawing tools"
+      aria-label={t('tool.label')}
       aria-orientation={orientation}
       onKeyDown={onKeyDown}
       className={cn(
@@ -90,11 +92,11 @@ export function DrawingToolbar({
         vertical ? 'flex-col' : 'flex-row justify-around',
       )}
     >
-      <IconButton label="Pen" icon={<Pencil />} pressed={tool === 'pen'} onClick={() => onToolChange('pen')} {...item(0)} />
-      <IconButton label="Eraser" icon={<Eraser />} pressed={tool === 'eraser'} onClick={() => onToolChange('eraser')} {...item(1)} />
-      <IconButton label="Undo your last stroke" icon={<Undo2 />} disabled={!canUndo} onClick={onUndo} {...item(2)} />
+      <IconButton label={t('tool.pen')} icon={<Pencil />} pressed={tool === 'pen'} onClick={() => onToolChange('pen')} {...item(0)} />
+      <IconButton label={t('tool.eraser')} icon={<Eraser />} pressed={tool === 'eraser'} onClick={() => onToolChange('eraser')} {...item(1)} />
+      <IconButton label={t('tool.undo')} icon={<Undo2 />} disabled={!canUndo} onClick={onUndo} {...item(2)} />
       <IconButton
-        label="Brush colour"
+        label={t('tool.colour')}
         data-panel="colour"
         aria-expanded={panel === 'colour'}
         pressed={panel === 'colour'}
@@ -103,7 +105,7 @@ export function DrawingToolbar({
         {...item(3)}
       />
       <IconButton
-        label="Brush size"
+        label={t('tool.size')}
         data-panel="size"
         aria-expanded={panel === 'size'}
         pressed={panel === 'size'}
@@ -111,7 +113,7 @@ export function DrawingToolbar({
         onClick={() => toggle('size')}
         {...item(4)}
       />
-      <IconButton label={clearCopy?.label ?? 'Clear the canvas'} icon={<Trash2 />} onClick={() => setConfirmClear(true)} {...item(5)} />
+      <IconButton label={clearCopy?.label ?? t('tool.clear')} icon={<Trash2 />} onClick={() => setConfirmClear(true)} {...item(5)} />
 
       {panel ? (
         <div
@@ -131,10 +133,10 @@ export function DrawingToolbar({
       <Modal
         open={confirmClear}
         onOpenChange={setConfirmClear}
-        title={clearCopy?.title ?? 'Clear the whole canvas?'}
-        description={clearCopy?.description ?? "Everything on the canvas goes, including your partner's strokes. This cannot be undone."}
+        title={clearCopy?.title ?? t('tool.clear.title')}
+        description={clearCopy?.description ?? t('tool.clear.text')}
         confirm={{
-          label: clearCopy?.confirm ?? 'Clear canvas',
+          label: clearCopy?.confirm ?? t('tool.clear.confirm'),
           destructive: true,
           onClick: () => {
             setConfirmClear(false)

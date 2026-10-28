@@ -716,7 +716,7 @@ describe('draw and guess rooms', () => {
 
     guesser.send({ type: 'guess', text: 'definitely not it' })
     const back = await stateOf(drawer, (g) => g.phase === 'draw' && g.interval === 1)
-    expect(back.last).toEqual({ text: 'definitely not it', correct: false })
+    expect(back.last).toEqual({ text: 'definitely not it', correct: false, at: 0 })
     expect(back.wordId).toBe(mine.wordId)
     expect((await stateOf(guesser, (g) => g.phase === 'draw' && g.interval === 1)).wordId).toBeNull()
     guesser.send({ type: 'guess', text: 'one more' }) // one try per window
@@ -736,11 +736,11 @@ describe('draw and guess rooms', () => {
     const { drawer, guesser, wheel, hostClient, guestClient } = await startedRound()
     await stateOf(drawer, (g) => g.phase === 'draw')
     for (const m of stroke('drawer-stroke-1')) drawer.send(m)
-    const lost = await stateOf(guesser, (g) => g.phase === 'result', 15_000)
+    const lost = await stateOf(guesser, (g) => g.phase === 'result', 40_000)
     expect(lost).toMatchObject({ result: { won: false, interval: null, points: 0 }, played: 1, won: 0, score: 0 })
     expect(typeof lost.wordId).toBe('number') // shown to the guesser at last
 
-    const next = await stateOf(guesser, (g) => g.round === 2 && g.phase === 'roulette', 15_000)
+    const next = await stateOf(guesser, (g) => g.round === 2 && g.phase === 'roulette', 40_000)
     expect(next.drawer).toBe(wheel.drawer === 1 ? 2 : 1)
     expect(next.wordId).toBeNull()
     await guesser.waitFor((m) => (m as any).type === 'event' && (m as any).from === 'server' && (m as any).body?.type === 'clear')

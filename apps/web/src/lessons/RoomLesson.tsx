@@ -1,10 +1,11 @@
 import { useEffect } from 'react'
-import { findLesson, scoreStep, type Lesson } from '@penduet/lessons'
+import { findLesson, lessonText, scoreStep, type Lesson } from '@penduet/lessons'
 import type { Stroke } from '@penduet/protocol'
 import type { RoomSocket, RoomState } from '../data/socket'
 import { saveResult } from '../data/progress'
 import type { Board } from '../drawing/board'
 import { useCanUndo } from '../drawing/hooks'
+import { useT } from '../i18n'
 import { Button, ButtonLink, ScoreCard, StepProgress } from '../ui'
 import { LessonSummary, hintFor, overallStars, stageLabel, type StepOutcome } from './shared'
 
@@ -105,6 +106,8 @@ export function useRoomLesson(state: RoomState, board: Board, socket: RoomSocket
 
 /** Progress, the prompt, the result card or the summary. The canvas itself is drawn by the room page. */
 export function RoomLessonPanel({ c, state }: { c: RoomLessonControls; state: RoomState }) {
+  const { t, lang } = useT()
+  const text = lessonText(c.lesson, lang)
   const total = c.lesson.steps.length
   const result = state.lesson?.result ?? null
   const outcomes: StepOutcome[] = c.lesson.steps.map((_, i) => ({ stars: state.lesson?.results[i]?.stars ?? 0, skipped: !state.lesson?.results[i] }))
@@ -112,16 +115,16 @@ export function RoomLessonPanel({ c, state }: { c: RoomLessonControls; state: Ro
   return (
     <div className="flex flex-col gap-3">
       <div>
-        <p className="text-sm font-semibold text-muted">{c.lesson.title}, together</p>
-        <h2 className="font-display text-lg font-bold">{c.phase === 'done' ? 'Lesson finished' : `${stageLabel[c.step!.stage]}: step ${c.stepIndex + 1}`}</h2>
+        <p className="text-sm font-semibold text-muted">{t('lesson.together', { title: text.title })}</p>
+        <h2 className="font-display text-lg font-bold">{c.phase === 'done' ? t('lesson.finished') : t('lesson.stepTitle', { stage: stageLabel(c.step!.stage), n: c.stepIndex + 1 })}</h2>
       </div>
       <StepProgress current={c.phase === 'done' ? total + 1 : c.stepIndex + 1} total={total} />
-      {c.phase === 'draw' ? <p className="max-w-prose text-lg">{c.step!.prompt}</p> : null}
+      {c.phase === 'draw' ? <p className="max-w-prose text-lg">{text.steps[c.stepIndex] ?? c.step!.prompt}</p> : null}
 
       {c.phase === 'result' && result ? (
         <>
           <ScoreCard
-            title={`Step ${c.stepIndex + 1} of ${total}`}
+            title={t('step.of', { a: c.stepIndex + 1, b: total })}
             accuracy={result.accuracy}
             smoothness={result.smoothness}
             stars={result.stars}
@@ -133,7 +136,7 @@ export function RoomLessonPanel({ c, state }: { c: RoomLessonControls; state: Ro
           {!result.passed ? (
             <div>
               <Button variant="ghost" onClick={c.next}>
-                Move on anyway
+                {t('lesson.moveOn')}
               </Button>
             </div>
           ) : null}
@@ -144,12 +147,12 @@ export function RoomLessonPanel({ c, state }: { c: RoomLessonControls; state: Ro
         <LessonSummary
           lesson={c.lesson}
           outcomes={outcomes}
-          title="Well drawn, both of you"
+          title={t('lesson.wellDrawnTogether')}
           actions={
             <>
-              <Button onClick={c.again}>Draw it again</Button>
+              <Button onClick={c.again}>{t('lesson.drawAgain')}</Button>
               <ButtonLink to="/lessons" variant="secondary">
-                More lessons
+                {t('lesson.more')}
               </ButtonLink>
             </>
           }

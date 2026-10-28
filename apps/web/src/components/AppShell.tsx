@@ -1,25 +1,27 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
-import { Brush, Settings, Shapes, Users, type LucideIcon } from 'lucide-react'
+import { Brush, Globe, Settings, Shapes, Users, type LucideIcon } from 'lucide-react'
 import { CONTACT_EMAIL } from '../data/config'
+import { setLang, useT, type StringKey } from '../i18n'
 import { cn, SegmentedControl } from '../ui'
 import { useTheme, type ThemeChoice } from '../theme'
 import { BrandMark } from './Brand'
 
-const nav: { to: string; label: string; icon: LucideIcon }[] = [
-  { to: '/lessons', label: 'Lessons', icon: Shapes },
-  { to: '/together', label: 'Together', icon: Users },
-  { to: '/draw', label: 'Free draw', icon: Brush },
-  { to: '/settings', label: 'Settings', icon: Settings },
+const nav: { to: string; label: StringKey; icon: LucideIcon }[] = [
+  { to: '/lessons', label: 'nav.lessons', icon: Shapes },
+  { to: '/together', label: 'nav.together', icon: Users },
+  { to: '/draw', label: 'nav.draw', icon: Brush },
+  { to: '/settings', label: 'nav.settings', icon: Settings },
 ]
 
-const themes: { value: ThemeChoice; label: string }[] = [
-  { value: 'system', label: 'Auto' },
-  { value: 'light', label: 'Light' },
-  { value: 'dark', label: 'Dark' },
+const themes: { value: ThemeChoice; label: StringKey }[] = [
+  { value: 'system', label: 'theme.auto' },
+  { value: 'light', label: 'theme.light' },
+  { value: 'dark', label: 'theme.dark' },
 ]
 
 export function AppShell() {
+  const { t, lang } = useT()
   const [theme, setTheme] = useTheme()
   const { pathname } = useLocation()
   const [announcement, setAnnouncement] = useState('')
@@ -41,15 +43,15 @@ export function AppShell() {
         href="#main"
         className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-raised focus:px-4 focus:py-2 focus:shadow-pop"
       >
-        Skip to content
+        {t('a11y.skip')}
       </a>
       <header className="sticky top-0 z-30 flex h-header items-center justify-between gap-3 border-b border-line glass px-4 md:px-8">
         <div className="flex items-center gap-4 md:gap-8">
-          <NavLink to="/" className="group inline-flex min-h-touch items-center gap-2.5" aria-label="Penduet, home">
+          <NavLink to="/" className="group inline-flex min-h-touch min-w-touch items-center justify-center gap-2.5" aria-label={t('a11y.brandHome')}>
             <BrandMark className="transition-transform duration-base ease-out group-hover:-rotate-6 group-active:scale-95" />
-            <span className="font-display text-xl font-bold tracking-tight">Penduet</span>
+            <span className="hidden font-display text-xl font-bold tracking-tight min-[430px]:inline">Penduet</span>
           </NavLink>
-          <nav aria-label="Main" className="hidden gap-1 sm:flex">
+          <nav aria-label={t('nav.main')} className="hidden gap-1 sm:flex">
             {nav.map((n) => (
               <NavLink
                 key={n.to}
@@ -63,12 +65,24 @@ export function AppShell() {
                   )
                 }
               >
-                {n.label}
+                {t(n.label)}
               </NavLink>
             ))}
           </nav>
         </div>
-        <SegmentedControl label="Theme" options={themes} value={theme} onChange={setTheme} />
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setLang(lang === 'es' ? 'en' : 'es')}
+            aria-label={t('lang.switchTo', { name: lang === 'es' ? 'English' : 'Español' })}
+            title={t('lang.switchTo', { name: lang === 'es' ? 'English' : 'Español' })}
+            className="inline-flex min-h-touch min-w-touch items-center justify-center gap-1.5 rounded-pill border border-line bg-raised px-3 text-sm font-bold shadow-card transition hover:bg-surface active:scale-95"
+          >
+            <Globe aria-hidden="true" className="h-4 w-4" />
+            <span lang={lang === 'es' ? 'en' : 'es'}>{lang === 'es' ? 'English' : 'Español'}</span>
+          </button>
+          <SegmentedControl label={t('theme.label')} options={themes.map((o) => ({ ...o, label: t(o.label) }))} value={theme} onChange={setTheme} />
+        </div>
       </header>
       <p role="status" aria-live="polite" className="sr-only">
         {announcement}
@@ -79,23 +93,23 @@ export function AppShell() {
         </div>
       </main>
       <footer className="mx-auto flex w-full max-w-content flex-wrap items-center gap-x-6 gap-y-1 border-t border-line px-4 py-6 pb-28 text-sm text-muted sm:pb-6 md:px-8">
-        <span>Penduet · early version</span>
-        <nav aria-label="Legal" className="flex flex-wrap gap-x-4">
+        <span>{t('footer.early')}</span>
+        <nav aria-label={t('nav.legal')} className="flex flex-wrap gap-x-4">
           <Link className="inline-flex min-h-touch min-w-touch items-center justify-center underline" to="/privacy">
-            Privacy
+            {t('footer.privacy')}
           </Link>
           <Link className="inline-flex min-h-touch min-w-touch items-center justify-center underline" to="/terms">
-            Terms
+            {t('footer.terms')}
           </Link>
           {CONTACT_EMAIL ? (
             <a className="inline-flex min-h-touch min-w-touch items-center justify-center underline" href={`mailto:${CONTACT_EMAIL}`}>
-              Send feedback
+              {t('footer.feedback')}
             </a>
           ) : null}
         </nav>
       </footer>
       <nav
-        aria-label="Main (compact)"
+        aria-label={t('nav.mainCompact')}
         className="pb-safe fixed inset-x-0 bottom-0 z-30 flex rounded-t-xl border-t border-line glass-raised shadow-pop sm:hidden"
       >
         {nav.map((n) => (
@@ -119,7 +133,7 @@ export function AppShell() {
                 >
                   <n.icon aria-hidden="true" className={cn('h-5 w-5 transition-transform duration-base ease-out', isActive && '-translate-y-px scale-110')} strokeWidth={isActive ? 2.5 : 2} />
                 </span>
-                {n.label}
+                {t(n.label)}
               </>
             )}
           </NavLink>

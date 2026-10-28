@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { CircleAlert } from 'lucide-react'
 import { ROOM_CODE_LENGTH, normalizeRoomCode } from '@penduet/protocol'
+import { useT } from '../i18n'
 import { cn } from './cn'
 
 export interface RoomCodeInputProps {
@@ -20,7 +21,8 @@ const COMPLETE_DELAY_MS = 250
  * One real input, transparent, laid over six decorative cells. That keeps paste, autofill,
  * screen readers and the mobile keyboard working the normal way.
  */
-export function RoomCodeInput({ value, onChange, onComplete, error, disabled, label = 'Room code' }: RoomCodeInputProps) {
+export function RoomCodeInput({ value, onChange, onComplete, error, disabled, label }: RoomCodeInputProps) {
+  const { t } = useT()
   const id = useId()
   const errorId = `${id}-error`
   const [focused, setFocused] = useState(false)
@@ -39,7 +41,7 @@ export function RoomCodeInput({ value, onChange, onComplete, error, disabled, la
   return (
     <div className="flex flex-col gap-1">
       <label htmlFor={id} className="text-sm font-semibold">
-        {label}
+        {label ?? t('code.label')}
       </label>
       <div className="relative w-max">
         <div aria-hidden="true" className="flex gap-2">

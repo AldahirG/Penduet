@@ -1,3 +1,4 @@
+import { t, type StringKey } from '../i18n'
 import {
   ROOM_CODE_ALPHABET,
   ROOM_CODE_LENGTH,
@@ -55,16 +56,17 @@ const FROM_API: Record<RoomApiErrorCode, RoomErrorCode> = {
   server_error: 'network',
 }
 
-const CREATE_ERRORS: Partial<Record<RoomErrorCode, string>> = {
-  too_many_rooms: 'You already have three open rooms. End one before starting another.',
-  rate_limited: 'You started a lot of rooms. Wait a while and try again.',
-  captcha: 'The human check is not available in this version yet.',
-  not_authenticated: 'Could not sign you in as a guest. Reload the page and try again.',
+const CREATE_ERRORS: Partial<Record<RoomErrorCode, StringKey>> = {
+  too_many_rooms: 'err.tooManyRooms',
+  rate_limited: 'err.rateLimitedCreate',
+  captcha: 'err.captcha',
+  not_authenticated: 'err.notAuthenticated',
 }
 
-/** Plain wording for why a room could not be created. */
+/** Plain wording for why a room could not be created, in the language of the moment. */
 export function createErrorText(err: unknown): string {
-  return (err instanceof RoomError && CREATE_ERRORS[err.code]) || 'Could not start a room. Try again.'
+  const key = err instanceof RoomError ? CREATE_ERRORS[err.code] : undefined
+  return t(key ?? 'err.createGeneric')
 }
 
 // ---- the real thing ---------------------------------------------------------------

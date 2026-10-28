@@ -1,8 +1,12 @@
-import { useEffect, useId, useRef, useState, type CSSProperties, type FormEvent } from 'react'
-import { Lock, Star } from 'lucide-react'
-import type { Word } from '@penduet/lessons'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { Star, Volume2, VolumeX } from 'lucide-react'
+import { wordIn, type Word } from '@penduet/lessons'
 import { useMediaQuery } from '../drawing/hooks'
-import { Button, cn } from '../ui'
+import { useT } from '../i18n'
+import { sfx, useMuted } from '../sound/sfx'
+import { cn } from '../ui'
+import { WrongBurst } from './GuessBurst'
+import { seconds, usePhaseLength, useRemaining, useTickSound } from './guessHooks'
 import { wordIcon } from './wordIcons'
 
 /** What a room made for draw and guess needs from the page. The room runs the clock and judges answers; this only shows them. */
@@ -35,7 +39,7 @@ export interface GuessControls {
    */
   drawUntil: number | null
   /** The latest answer of this round. */
-  last: { text: string; correct: boolean } | null
+  last: { text: string; correct: boolean; at: number } | null
   result: { won: boolean; interval: number | null; points: number } | null
   score: number
   played: number
@@ -43,29 +47,46 @@ export interface GuessControls {
   submit: (text: string) => void
 }
 
-/** Milliseconds left until `deadline`, refreshed ten times a second while there is one. */
-function useRemaining(deadline: number | null): number {
-  const [now, setNow] = useState(() => Date.now())
-  useEffect(() => {
-    if (deadline === null) return
-    setNow(Date.now())
-    const id = window.setInterval(() => setNow(Date.now()), 100)
-    return () => window.clearInterval(id)
-  }, [deadline])
-  return deadline === null ? 0 : Math.max(0, deadline - now)
+/** The side column exists from this width up. Below it the panel sits under the canvas, so what you need while playing goes on the canvas. */
+export const WIDE = '(min-width: 1024px)'
+
+export function MuteButton({ className }: { className?: string }) {
+  const { t } = useT()
+  const [muted, setMuted] = useMuted()
+  const Icon = muted ? VolumeX : Volume2
+  return (
+    <button
+      type="button"
+      aria-pressed={muted}
+      aria-label={muted ? t('sound.unmute') : t('sound.mute')}
+      title={muted ? t('sound.unmute') : t('sound.mute')}
+      onClick={() => {
+        setMuted(!muted)
+        if (muted) window.setTimeout(() => sfx.chime(), 30)
+      }}
+      className={cn('inline-grid h-touch w-touch place-items-center rounded-pill text-muted transition hover:bg-surface hover:text-fg active:scale-90', className)}
+    >
+      <Icon aria-hidden="true" className="h-5 w-5" />
+    </button>
+  )
 }
 
-/** How long the current phase lasts, learned from the first time it is seen (the room may be running at any pace). */
-function usePhaseLength(key: string, remaining: number): number {
-  const seen = useRef({ key: '', total: 1 })
-  if (seen.current.key !== key) seen.current = { key, total: Math.max(1, remaining) }
-  return seen.current.total
+const categories: Record<Word['category'], [string, string]> = {
+  Animals: ['Animals', 'Animales'],
+  Food: ['Food', 'Comida'],
+  Objects: ['Objects', 'Objetos'],
+  Places: ['Places', 'Lugares'],
+  Nature: ['Nature', 'Naturaleza'],
+  Vehicles: ['Vehicles', 'Vehículos'],
+  Characters: ['Characters', 'Personajes'],
+  Activities: ['Activities', 'Actividades'],
+  Ideas: ['Ideas', 'Ideas'],
 }
-
-const seconds = (ms: number) => Math.ceil(ms / 1000)
+export const categoryLabel = (c: Word['category'], lang: 'en' | 'es'): string => categories[c][lang === 'es' ? 1 : 0]
 
 /** The reference picture and the word, for the drawer (and for both people at the end). */
-function WordCard({ word, tone = 'plain' }: { word: Word; tone?: 'plain' | 'won' | 'lost' }) {
+export function WordCard({ word, tone = 'plain' }: { word: Word; tone?: 'plain' | 'won' | 'lost' }) {
+  const { lang } = useT()
   const Icon = wordIcon(word.icon)
   return (
     <div className="flex items-center gap-3">
@@ -79,78 +100,31 @@ function WordCard({ word, tone = 'plain' }: { word: Word; tone?: 'plain' | 'won'
         <Icon className="h-10 w-10" strokeWidth={1.5} />
       </span>
       <div className="min-w-0">
-        <p className="text-xs font-bold uppercase tracking-wide text-muted">{word.category}</p>
+        <p className="text-xs font-bold uppercase tracking-wide text-muted">{categoryLabel(word.category, lang)}</p>
         <p data-testid="secret-word" className="truncate font-display text-2xl font-bold leading-tight">
-          {word.word}
+          {wordIn(word, lang)}
         </p>
       </div>
     </div>
   )
 }
 
-/** The side column exists from this width up. Below it the panel sits under the canvas, so what you need while playing goes on the canvas. */
-const WIDE = '(min-width: 1024px)'
-
-function AnswerForm({ g, overlay = false }: { g: GuessControls; overlay?: boolean }) {
-  const id = useId()
-  const input = useRef<HTMLInputElement>(null)
-  const [text, setText] = useState('')
-  const [sent, setSent] = useState(false)
-  // A new window is a new try: clear the box, and put the cursor in it.
-  useEffect(() => {
-    setText('')
-    setSent(false)
-    input.current?.focus({ preventScroll: true })
-  }, [g.round, g.interval])
-  const submit = (e: FormEvent) => {
-    e.preventDefault()
-    const t = text.trim()
-    if (!t || sent) return
-    setSent(true)
-    g.submit(t)
-  }
-  return (
-    <form onSubmit={submit} className={cn('flex flex-col gap-1', overlay && 'glass-raised pointer-events-auto rounded-xl border border-line p-3 shadow-pop')}>
-      <label htmlFor={id} className="text-sm font-semibold">
-        One try: what is it?
-      </label>
-      <div className="flex gap-2">
-        <input
-          ref={input}
-          id={id}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          maxLength={40}
-          autoComplete="off"
-          autoCapitalize="off"
-          autoCorrect="off"
-          spellCheck={false}
-          enterKeyHint="send"
-          disabled={sent}
-          className="min-h-touch min-w-0 flex-1 rounded-md border border-input bg-bg px-3 text-base text-fg disabled:cursor-not-allowed disabled:opacity-45"
-        />
-        <Button type="submit" disabled={sent || text.trim() === ''}>
-          Guess
-        </Button>
-      </div>
-    </form>
-  )
-}
-
-/** The part of the panel whose content changes with the phase. It keeps one height, so the canvas never moves. */
-function Main({ g, wide }: { g: GuessControls; wide: boolean }) {
+/** The part of the panel whose content changes with the phase. */
+function Main({ g }: { g: GuessControls }) {
+  const { t, tn, lang } = useT()
   const wrong = g.last && !g.last.correct ? g.last.text : null
+  const word = g.word ? wordIn(g.word, lang) : ''
   switch (g.phase) {
     case 'waiting':
       return (
         <p role="status" className="text-lg">
-          {g.hasPartner ? 'Getting the round ready…' : 'Waiting for your partner. The game starts when you are both here.'}
+          {g.hasPartner ? t('guess.gettingReady') : t('guess.waitingPartner')}
         </p>
       )
     case 'roulette':
       return (
         <p role="status" className="text-lg">
-          Choosing who draws…
+          {t('guess.choosing')}
         </p>
       )
     case 'countdown':
@@ -158,41 +132,35 @@ function Main({ g, wide }: { g: GuessControls; wide: boolean }) {
         <div className="flex flex-col gap-1">
           <WordCard word={g.word} />
           <p role="status" className="sr-only">
-            You draw this round. Your word is {g.word.word}.
+            {t('guess.youDrawSr', { word })}
           </p>
         </div>
       ) : (
         <p role="status" className="text-lg">
-          {g.peerName} draws this round. Get ready to guess.
+          {t('guess.peerDrawsGetReady', { name: g.peerName })}
         </p>
       )
     case 'draw':
       return g.amDrawer && g.word ? (
         <div className="flex flex-col gap-1">
           <WordCard word={g.word} />
-          {wrong ? <p className="text-sm text-muted">{g.peerName} tried “{wrong}”. Add more detail.</p> : null}
+          {wrong ? <p className="text-sm text-muted">{t('guess.peerTried', { name: g.peerName, text: wrong })}</p> : null}
           <p role="status" className="sr-only">
-            Draw {g.word.word}. {wrong ? `${g.peerName} tried ${wrong}.` : ''}
+            {t('guess.drawSr', { word })} {wrong ? t('guess.peerTriedSr', { name: g.peerName, text: wrong }) : ''}
           </p>
         </div>
       ) : (
         <div className="flex flex-col gap-1">
           <p role="status" className="text-lg">
-            {g.peerName} is drawing. Watch closely.
+            {t('guess.peerDrawing', { name: g.peerName })}
           </p>
-          {wrong ? <p className="text-sm text-muted">Not “{wrong}”.</p> : null}
+          {wrong ? <p className="text-sm text-muted">{t('guess.notThat', { text: wrong })}</p> : null}
         </div>
       )
     case 'answer':
-      return g.amDrawer ? (
+      return (
         <p role="status" className="text-lg">
-          {g.peerName} is guessing…
-        </p>
-      ) : wide ? (
-        <AnswerForm g={g} />
-      ) : (
-        <p role="status" className="text-lg">
-          Time to guess. Type it in the box on the canvas.
+          {g.amDrawer ? t('guess.peerGuessing', { name: g.peerName }) : t('guess.timeToGuessPanel')}
         </p>
       )
     case 'result':
@@ -200,9 +168,7 @@ function Main({ g, wide }: { g: GuessControls; wide: boolean }) {
         <div className="flex flex-col gap-1">
           {g.word ? <WordCard word={g.word} tone={g.result?.won ? 'won' : 'lost'} /> : null}
           <p role="status" className={cn('text-sm font-bold', g.result?.won ? 'text-success' : 'text-muted')}>
-            {g.result?.won
-              ? `Got it! +${g.result.points} ${g.result.points === 1 ? 'point' : 'points'}`
-              : 'No luck this time. The word was above.'}
+            {g.result?.won ? tn('guess.gotIt', g.result.points) : t('guess.noLuck')}
           </p>
         </div>
       )
@@ -211,17 +177,19 @@ function Main({ g, wide }: { g: GuessControls; wide: boolean }) {
 
 /** Four bars, one per burst of drawing, and the time left in the current phase. */
 function Timer({ g }: { g: GuessControls }) {
+  const { t } = useT()
   const remaining = useRemaining(g.deadline)
   const total = usePhaseLength(`${g.phase}-${g.round}-${g.interval}`, remaining)
+  useTickSound(remaining, g.phase === 'draw', 3)
   if (g.phase === 'waiting' || g.phase === 'roulette') return <div className="h-6" aria-hidden="true" />
   const label =
     g.phase === 'countdown'
-      ? 'Starting'
+      ? t('guess.timer.starting')
       : g.phase === 'draw'
-        ? `Drawing ${g.interval + 1} of ${g.intervals}`
+        ? t('guess.timer.drawing', { n: g.interval + 1, total: g.intervals })
         : g.phase === 'answer'
-          ? 'Guess now'
-          : 'Next round'
+          ? t('guess.timer.guessNow')
+          : t('guess.timer.next')
   return (
     <div className="flex items-center gap-3">
       <div className="flex flex-1 gap-1.5" aria-hidden="true">
@@ -246,30 +214,38 @@ function Timer({ g }: { g: GuessControls }) {
   )
 }
 
-export function GuessPanel({ g, wide }: { g: GuessControls; wide?: boolean }) {
-  const media = useMediaQuery(WIDE)
+export function GuessPanel({ g }: { g: GuessControls }) {
+  const { t, tn } = useT()
+  const heading =
+    g.phase === 'waiting'
+      ? t('guess.waiting')
+      : g.phase === 'roulette' || g.phase === 'result'
+        ? t('guess.round', { n: g.round })
+        : g.amDrawer
+          ? t('guess.roundYouDraw', { n: g.round })
+          : t('guess.roundPeerDraws', { n: g.round, name: g.peerName })
   return (
     <div className="paper flex min-h-[11rem] flex-col gap-3 p-4" data-testid="guess-panel" data-phase={g.phase}>
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold text-muted">Draw and guess</p>
-          <h2 className="font-display text-lg font-bold leading-tight">
-            {g.phase === 'waiting' ? 'Waiting' : `Round ${g.round}`}
-            {g.phase !== 'waiting' && g.phase !== 'roulette' && g.phase !== 'result' ? (g.amDrawer ? ': you draw' : `: ${g.peerName} draws`) : ''}
-          </h2>
+          <p className="text-sm font-semibold text-muted">{t('guess.title')}</p>
+          <h2 className="font-display text-lg font-bold leading-tight">{heading}</h2>
         </div>
-        {g.played > 0 ? (
-          <p className="flex items-center gap-1.5 rounded-pill border border-line bg-surface px-3 py-1 text-sm font-bold">
-            <Star aria-hidden="true" className="h-4 w-4 fill-paint-yellow text-paint-yellow" />
-            <span className="sr-only">{`Score ${g.score}. ${g.won} of ${g.played} rounds guessed.`}</span>
-            <span aria-hidden="true">
-              {g.score} {g.score === 1 ? 'pt' : 'pts'} · {g.won}/{g.played}
-            </span>
-          </p>
-        ) : null}
+        <div className="flex items-center gap-1">
+          {g.played > 0 ? (
+            <p className="flex items-center gap-1.5 rounded-pill border border-line bg-surface px-3 py-1 text-sm font-bold">
+              <Star aria-hidden="true" className="h-4 w-4 fill-paint-yellow text-paint-yellow" />
+              <span className="sr-only">{t('guess.scoreSr', { score: g.score, won: g.won, played: g.played })}</span>
+              <span aria-hidden="true">
+                {tn('guess.scoreShort', g.score)} · {g.won}/{g.played}
+              </span>
+            </p>
+          ) : null}
+          <MuteButton />
+        </div>
       </div>
       <div className="min-h-[4.75rem]">
-        <Main g={g} wide={wide ?? media} />
+        <Main g={g} />
       </div>
       <Timer g={g} />
     </div>
@@ -282,6 +258,7 @@ const SECTORS = 8
 
 /** The wheel: eight slices in the two seat colours. It spins and stops on the seat the room already picked. */
 function Wheel({ g, remaining }: { g: GuessControls; remaining: number }) {
+  const { t } = useT()
   const [angle, setAngle] = useState(0)
   const [spinMs, setSpinMs] = useState(0)
   useEffect(() => {
@@ -290,6 +267,7 @@ function Wheel({ g, remaining }: { g: GuessControls; remaining: number }) {
     const target = 360 * 3 - (k * (360 / SECTORS) + 360 / SECTORS / 2)
     const ms = Math.max(300, remaining - 350)
     setSpinMs(ms)
+    sfx.spin(ms)
     const frame = requestAnimationFrame(() => requestAnimationFrame(() => setAngle(target)))
     return () => cancelAnimationFrame(frame)
     // once per round: the wheel is for show and the room has already decided
@@ -322,18 +300,43 @@ function Wheel({ g, remaining }: { g: GuessControls; remaining: number }) {
           <circle cx="100" cy="100" r="14" fill="var(--color-canvas)" stroke="var(--color-ink)" strokeWidth="3" />
         </svg>
       </div>
-      <p
-        className="rise font-display text-xl font-bold text-ink"
-        style={{ animationDelay: `${Math.max(0, remaining - 600)}ms` } as CSSProperties}
-      >
-        {drawerName} draws!
+      <p className="rise font-display text-xl font-bold text-ink" style={{ animationDelay: `${Math.max(0, remaining - 600)}ms` } as CSSProperties}>
+        {t('guess.drawsBang', { name: drawerName })}
       </p>
     </div>
   )
 }
 
-/** Sits on the canvas: the wheel, the countdown, the "Start!" and the "canvas locked" badge. Decorative: the panel says it all in words. */
-function CanvasCover({ g, wide: isWide }: { g: GuessControls; wide: boolean }) {
+/** The countdown numbers, with a beep for each. */
+function Countdown({ remaining }: { remaining: number }) {
+  const n = Math.max(1, seconds(remaining))
+  const last = useRef(0)
+  useEffect(() => {
+    if (n !== last.current) sfx.beep(n === 1)
+    last.current = n
+  }, [n])
+  return (
+    <p key={n} className="pop-in font-display text-[9rem] font-extrabold leading-none text-ink sm:text-[11rem]">
+      {n}
+    </p>
+  )
+}
+
+/** "Go!" flashes once at the start of the first burst. */
+function GoFlash({ round }: { round: number }) {
+  const { t } = useT()
+  useEffect(() => {
+    sfx.go()
+  }, [round])
+  return (
+    <p key={round} className="start-flash font-display text-6xl font-extrabold text-ink sm:text-7xl">
+      {t('guess.start')}
+    </p>
+  )
+}
+
+/** The cover over the canvas: the wheel, the countdown and the "Go!". */
+function CanvasCover({ g }: { g: GuessControls }) {
   const remaining = useRemaining(g.deadline)
   const total = usePhaseLength(`${g.phase}-${g.round}-${g.interval}`, remaining)
   const cover = 'absolute inset-0 grid place-items-center rounded-lg'
@@ -347,77 +350,55 @@ function CanvasCover({ g, wide: isWide }: { g: GuessControls; wide: boolean }) {
     )
   }
   if (g.phase === 'countdown') {
-    const n = Math.max(1, seconds(remaining))
     return (
       <div aria-hidden="true" className={cover} style={veil}>
-        <p key={n} className="pop-in font-display text-[9rem] font-extrabold leading-none text-ink sm:text-[11rem]">
-          {n}
-        </p>
+        <Countdown remaining={remaining} />
       </div>
     )
   }
   if (g.phase === 'draw' && g.interval === 0 && remaining > total - 900) {
     return (
       <div aria-hidden="true" className={cn(cover, 'pointer-events-none')}>
-        <p key={g.round} className="start-flash font-display text-6xl font-extrabold text-ink sm:text-7xl">
-          Start!
-        </p>
-      </div>
-    )
-  }
-  if (g.phase === 'answer' && !isWide) return null // the badges and the answer box below take its place
-  if (g.phase === 'answer') {
-    return (
-      <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-3 flex justify-center">
-        <p className="rise glass-raised flex items-center gap-2 rounded-pill border border-line px-4 py-1.5 text-sm font-bold shadow-card">
-          <Lock className="h-4 w-4" />
-          {g.amDrawer ? 'Canvas locked. Waiting for the answer' : 'Time to guess'}
-        </p>
+        <GoFlash round={g.round} />
       </div>
     )
   }
   return null
 }
 
-/** Phone: the word, the clock and (for the guesser) the answer box ride on the canvas, so nothing important is below the fold. */
+/** Phone: the word and the clock ride on the canvas, so nothing important is below the fold. */
 function PhoneHud({ g }: { g: GuessControls }) {
+  const { t, lang } = useT()
   const remaining = useRemaining(g.deadline)
-  const live = g.phase === 'countdown' || g.phase === 'draw' || g.phase === 'answer' || g.phase === 'result'
+  const live = g.phase === 'countdown' || g.phase === 'draw'
   if (!live) return null
   const Icon = g.word ? wordIcon(g.word.icon) : null
-  const clock = g.phase === 'draw' ? 'Draw' : g.phase === 'answer' ? 'Guess' : g.phase === 'countdown' ? 'Ready' : 'Next'
+  const clock = g.phase === 'draw' ? t('guess.hud.draw') : t('guess.hud.ready')
   return (
-    <>
-      <div aria-hidden="true" className="pointer-events-none absolute inset-x-3 top-3 flex items-start justify-between gap-2">
-        {g.word && Icon ? (
-          <p className="glass-raised flex min-w-0 items-center gap-2 rounded-pill border border-line py-1 pl-2 pr-3 text-sm font-bold shadow-card">
-            <Icon className="h-5 w-5 shrink-0" />
-            <span className="truncate">{g.word.word}</span>
-          </p>
-        ) : (
-          <span />
-        )}
-        <p className="glass-raised shrink-0 rounded-pill border border-line px-3 py-1 text-sm font-bold tabular-nums shadow-card">
-          {clock} · {seconds(remaining)}s
+    <div aria-hidden="true" className="pointer-events-none absolute inset-x-3 top-3 flex items-start justify-between gap-2">
+      {g.word && Icon ? (
+        <p className="glass-raised flex min-w-0 items-center gap-2 rounded-pill border border-line py-1 pl-2 pr-3 text-sm font-bold shadow-card">
+          <Icon className="h-5 w-5 shrink-0" />
+          <span className="truncate">{wordIn(g.word, lang)}</span>
         </p>
-      </div>
-      {g.phase === 'answer' && !g.amDrawer ? (
-        <div className="absolute inset-x-3 bottom-3">
-          <AnswerForm g={g} overlay />
-        </div>
-      ) : null}
-    </>
+      ) : (
+        <span />
+      )}
+      <p className="glass-raised shrink-0 rounded-pill border border-line px-3 py-1 text-sm font-bold tabular-nums shadow-card">
+        {clock} · {seconds(remaining)}s
+      </p>
+    </div>
   )
 }
 
-/** Sits on the canvas: the wheel, the countdown, the "Start!" and the "canvas locked" badge, plus the phone's HUD. */
+/** Sits on the canvas: the wheel, the countdown, the "Go!" and (on a phone) the word and the clock. */
 export function GuessCanvasOverlay({ g, wide }: { g: GuessControls; wide?: boolean }) {
   const media = useMediaQuery(WIDE)
-  const isWide = wide ?? media
   return (
     <>
-      <CanvasCover g={g} wide={isWide} />
-      {isWide ? null : <PhoneHud g={g} />}
+      <CanvasCover g={g} />
+      <WrongBurst g={g} />
+      {(wide ?? media) ? null : <PhoneHud g={g} />}
     </>
   )
 }

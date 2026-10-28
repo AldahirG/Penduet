@@ -195,7 +195,7 @@ export function answer(g: GuessGame, slot: Slot, text: string, now: number, t: T
   // Only the guesser, only in an answer window, and only before its time is up: the clock is the room's, not the browser's.
   if (g.phase !== 'answer' || g.drawer === null || slot === g.drawer || g.deadline === null || now > g.deadline) return { refused: 'not_open' }
   const right = g.wordId !== null && correct(g.wordId, trimmed)
-  g.last = { text: trimmed.slice(0, GUESS.maxAnswerLength), correct: right }
+  g.last = { text: trimmed.slice(0, GUESS.maxAnswerLength), correct: right, at: g.interval }
   if (right) return finish(g, now, t, true)
   if (g.interval + 1 >= GUESS.intervals) return finish(g, now, t, false)
   g.interval += 1

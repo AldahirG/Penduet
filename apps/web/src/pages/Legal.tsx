@@ -1,55 +1,17 @@
-import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { CONTACT_EMAIL, OPERATOR_NAME } from '../data/config'
+import { useT } from '../i18n'
 import { usePageTitle } from '../usePageTitle'
+import { Contact, LegalPage, Section, list } from './LegalParts'
+import { PrivacyEs, TermsEs } from './LegalEs'
 
-// Both pages are plain text written for this project. They describe what the code does today
-// (see replica/launch/legal-notes.md for where each claim comes from). Not legal advice: have a
-// lawyer in your country read them before the site is public.
-export const LEGAL_UPDATED = '2026-10-27'
-
-function Section({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <section className="flex flex-col gap-2">
-      <h2 className="font-display text-lg font-semibold">{title}</h2>
-      {children}
-    </section>
-  )
-}
-
-function Contact() {
-  return (
-    <>
-      {OPERATOR_NAME ? <p className="text-muted">Penduet is run by {OPERATOR_NAME}.</p> : null}
-      {CONTACT_EMAIL ? (
-        <p className="text-muted">
-          Questions, requests about your data, or a problem to report:{' '}
-          <a className="text-accent-text underline" href={`mailto:${CONTACT_EMAIL}`}>
-            {CONTACT_EMAIL}
-          </a>
-          .
-        </p>
-      ) : null}
-    </>
-  )
-}
-
-function LegalPage({ title, intro, children }: { title: string; intro: string; children: ReactNode }) {
-  return (
-    <article className="flex max-w-3xl flex-col gap-8">
-      <header className="flex flex-col gap-2">
-        <h1 className="font-display text-display font-extrabold">{title}</h1>
-        <p className="text-sm text-muted">Last updated {LEGAL_UPDATED}</p>
-        <p className="text-lg text-muted">{intro}</p>
-      </header>
-      {children}
-    </article>
-  )
-}
-
-const list = 'flex list-disc flex-col gap-1 pl-6 text-muted'
+export { LEGAL_UPDATED } from './LegalParts'
 
 export function Privacy() {
+  const { lang } = useT()
+  return lang === 'es' ? <PrivacyEs /> : <PrivacyEn />
+}
+
+function PrivacyEn() {
   usePageTitle('Privacy policy')
   return (
     <LegalPage
@@ -85,7 +47,7 @@ export function Privacy() {
 
       <Section title="What stays on your device">
         <p className="text-muted">
-          Free drawings, your lesson progress, your theme choice and your guest sign-in are stored in your browser (local storage). They do
+          Free drawings, your lesson progress, your theme and language choice and your guest sign-in are stored in your browser (local storage). They do
           not leave your device, except the sign-in, which is how the service recognises you. Clearing your browser data removes them.
         </p>
       </Section>
@@ -96,6 +58,7 @@ export function Privacy() {
           <li>We do not sell your data or share it for marketing.</li>
           <li>This first version shows no ads and has no analytics or tracking scripts, and sets no tracking cookies.</li>
           <li>There is no chat. The only things two people exchange in a room are their lines and their display names.</li>
+          <li>The sounds in Draw and guess are made on your device; nothing is downloaded or sent.</li>
         </ul>
       </Section>
 
@@ -158,6 +121,11 @@ export function Privacy() {
 }
 
 export function Terms() {
+  const { lang } = useT()
+  return lang === 'es' ? <TermsEs /> : <TermsEn />
+}
+
+function TermsEn() {
   usePageTitle('Terms of use')
   return (
     <LegalPage

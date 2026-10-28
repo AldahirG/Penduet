@@ -46,7 +46,7 @@ describe('draw and guess: a round', () => {
       seen.push(`${g.phase}${g.phase === 'draw' || g.phase === 'answer' ? g.interval : ''}`)
     }
     expect(seen).toEqual(['countdown', 'draw0', 'answer0', 'draw1', 'answer1', 'draw2', 'answer2', 'draw3', 'answer3', 'result'])
-    // twenty seconds of drawing in all, and nobody scored
+    // a minute of drawing in all (four bursts), and nobody scored
     expect(now).toBe(T.rouletteMs + T.countdownMs + GUESS.intervals * (T.drawMs + T.answerMs))
     expect(g.result).toEqual({ won: false, interval: null, points: 0 })
     expect(g).toMatchObject({ played: 1, won: 0, score: 0 })
@@ -109,14 +109,14 @@ describe('draw and guess: answers', () => {
       const g = running('answer', interval)
       const step = answer(g, 2, 'cat', 500, T, alwaysCat)
       expect(step).toEqual({ changed: true, clear: false, lock: true })
-      expect(g).toMatchObject({ phase: 'result', result: { won: true, interval, points }, last: { text: 'cat', correct: true }, score: points, won: 1, played: 1 })
+      expect(g).toMatchObject({ phase: 'result', result: { won: true, interval, points }, last: { text: 'cat', correct: true, at: interval }, score: points, won: 1, played: 1 })
     }
   })
 
   it('a wrong answer opens the canvas again straight away, and the word stays secret', () => {
     const g = running('answer', 0)
     answer(g, 2, 'dog', 500, T, alwaysCat)
-    expect(g).toMatchObject({ phase: 'draw', interval: 1, last: { text: 'dog', correct: false }, deadline: 500 + T.drawMs })
+    expect(g).toMatchObject({ phase: 'draw', interval: 1, last: { text: 'dog', correct: false, at: 0 }, deadline: 500 + T.drawMs })
     expect(visibleTo(g, 2).wordId).toBeNull()
     expect(visibleTo(g, 1).wordId).toBe(CAT)
   })

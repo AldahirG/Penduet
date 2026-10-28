@@ -1,3 +1,4 @@
+import { useT } from '../i18n'
 import { useEffect, useRef, type PointerEvent } from 'react'
 import type { Point } from '@penduet/protocol'
 import type { Board, StrokeMeta } from './board'
@@ -54,9 +55,10 @@ export function DrawingCanvas({
   onStrokePoints,
   onStrokeEnd,
   onEngine,
-  label = 'Drawing canvas. Draw with a mouse, a finger or a pen.',
+  label,
   className,
 }: DrawingCanvasProps) {
+  const { t } = useT()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const engineRef = useRef<CanvasEngine | null>(null)
   const active = useRef<{ pointerId: number; id: string; last: [number, number] } | null>(null)
@@ -182,7 +184,7 @@ export function DrawingCanvas({
     <canvas
       ref={canvasRef}
       role="img"
-      aria-label={label}
+      aria-label={label ?? t('canvas.default')}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerEnd}

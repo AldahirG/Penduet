@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Download, Users } from 'lucide-react'
-import { findLesson, scoreStep, type Lesson as LessonData, type StepScore } from '@penduet/lessons'
+import { findLesson, lessonText, scoreStep, type Lesson as LessonData, type StepScore } from '@penduet/lessons'
 import { getProgress, saveResult } from '../data/progress'
 import { useCaptcha } from '../components/Turnstile'
 import { createErrorText, rooms } from '../data/rooms'
@@ -12,6 +12,7 @@ import { GuideOverlay } from '../drawing/GuideOverlay'
 import { useCanUndo, useMediaQuery, useSavePicture } from '../drawing/hooks'
 import { BRUSH_SIZES, DEFAULT_PALETTE } from '../drawing/palette'
 import { LessonSummary, Stars, hintText, overallStars, stageLabel } from '../lessons/shared'
+import { useT } from '../i18n'
 import { usePageTitle } from '../usePageTitle'
 import { Button, ButtonLink, DrawingToolbar, ScoreCard, StepProgress, useToast, type DrawingTool } from '../ui'
 
@@ -32,15 +33,16 @@ type Phase =
 
 // S05 lesson start, S06 lesson canvas, S07 result.
 export function Lesson() {
+  const { t } = useT()
   const { slug = '' } = useParams()
   const lesson = findLesson(slug)
   if (!lesson) {
     return (
       <section className="flex max-w-xl flex-col gap-4">
-        <h1 className="font-display text-xl font-bold">Lesson not found</h1>
-        <p className="text-muted">There is no lesson with that name.</p>
+        <h1 className="font-display text-xl font-bold">{t('lesson.notFound.title')}</h1>
+        <p className="text-muted">{t('lesson.notFound.text')}</p>
         <ButtonLink to="/lessons" variant="secondary" className="self-start">
-          See all lessons
+          {t('lesson.seeAll')}
         </ButtonLink>
       </section>
     )
@@ -49,7 +51,9 @@ export function Lesson() {
 }
 
 function LessonRun({ lesson }: { lesson: LessonData }) {
-  usePageTitle(lesson.title)
+  const { t, lang } = useT()
+  const text = lessonText(lesson, lang)
+  usePageTitle(text.title)
   const navigate = useNavigate()
   const toast = useToast()
   const [creating, setCreating] = useState(false)
@@ -69,7 +73,9 @@ function LessonRun({ lesson }: { lesson: LessonData }) {
 
   const total = lesson.steps.length
   const stepIndex = phase.kind === 'draw' || phase.kind === 'result' ? phase.step : phase.kind === 'done' ? total : 0
-  const step = lesson.steps[Math.min(stepIndex, total - 1)]!
+  const stepNo = Math.min(stepIndex, total - 1)
+  const step = lesson.steps[stepNo]!
+  const prompt = text.steps[stepNo] ?? step.prompt
   const previous = getProgress()[lesson.slug]
 
   /** Opens a room for this lesson and goes there: the same steps, drawn together on one canvas. */
@@ -130,40 +136,40 @@ function LessonRun({ lesson }: { lesson: LessonData }) {
   if (phase.kind === 'intro') {
     return (
       <section aria-labelledby="lesson-title" className="flex max-w-xl flex-col gap-4">
-        <p className="text-sm font-semibold text-muted">Lesson</p>
+        <p className="text-sm font-semibold text-muted">{t('lesson.kicker')}</p>
         <h1 id="lesson-title" className="font-display text-display font-extrabold">
-          {lesson.title}
+          {text.title}
         </h1>
-        <p className="text-lg text-muted">{lesson.summary}</p>
+        <p className="text-lg text-muted">{text.summary}</p>
         <dl className="grid grid-cols-3 gap-3 paper p-4 text-sm">
           <div>
-            <dt className="text-muted">Steps</dt>
+            <dt className="text-muted">{t('lesson.steps')}</dt>
             <dd className="font-semibold">{total}</dd>
           </div>
           <div>
-            <dt className="text-muted">Time</dt>
-            <dd className="font-semibold">about {lesson.estMinutes} min</dd>
+            <dt className="text-muted">{t('lesson.time')}</dt>
+            <dd className="font-semibold">{t('lesson.timeAbout', { n: lesson.estMinutes })}</dd>
           </div>
           <div>
-            <dt className="text-muted">Difficulty</dt>
-            <dd className="font-semibold">{lesson.difficulty} of 5</dd>
+            <dt className="text-muted">{t('lesson.difficulty')}</dt>
+            <dd className="font-semibold">{t('lesson.difficultyOf', { n: lesson.difficulty })}</dd>
           </div>
         </dl>
         {previous ? (
           <p className="flex items-center gap-2 text-sm text-muted">
-            Your best: <Stars n={previous.stars} /> <span>accuracy {previous.accuracy}</span>
+            {t('lesson.best')} <Stars n={previous.stars} /> <span>{t('lesson.accuracy', { n: previous.accuracy })}</span>
           </p>
         ) : null}
         {captcha.widget}
         <div className="flex flex-wrap gap-3">
           <Button size="lg" onClick={begin}>
-            {previous ? 'Draw it again' : 'Start lesson'}
+            {previous ? t('lesson.drawAgain') : t('lesson.start')}
           </Button>
           <Button size="lg" variant="secondary" loading={creating} disabled={captcha.required && !captcha.token} icon={<Users aria-hidden="true" className="h-4 w-4" />} onClick={together}>
-            Draw it with a friend
+            {t('lesson.withFriend')}
           </Button>
           <ButtonLink to="/lessons" size="lg" variant="ghost">
-            All lessons
+            {t('lesson.all')}
           </ButtonLink>
         </div>
       </section>
@@ -176,13 +182,13 @@ function LessonRun({ lesson }: { lesson: LessonData }) {
     <section aria-labelledby="lesson-title" className="flex flex-col gap-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold text-muted">{lesson.title}</p>
+          <p className="text-sm font-semibold text-muted">{text.title}</p>
           <h1 id="lesson-title" className="font-display text-xl font-bold">
-            {phase.kind === 'done' ? 'Lesson finished' : `${stageLabel[step.stage]}: step ${stepIndex + 1}`}
+            {phase.kind === 'done' ? t('lesson.finished') : t('lesson.stepTitle', { stage: stageLabel(step.stage), n: stepIndex + 1 })}
           </h1>
         </div>
         <Button variant="secondary" icon={<Download aria-hidden="true" className="h-4 w-4" />} onClick={() => save(lesson.slug)}>
-          Save as image
+          {t('common.saveImage')}
         </Button>
       </div>
       {/* One column on a phone. From lg up the canvas has its own column and the lesson text sits beside it,
@@ -193,18 +199,18 @@ function LessonRun({ lesson }: { lesson: LessonData }) {
 
           {drawing ? (
             <p className="max-w-prose text-lg" id="step-prompt">
-              {step.prompt}
+              {prompt}
             </p>
           ) : null}
 
           {phase.kind === 'result' ? (
             <ScoreCard
-              title={`Step ${stepIndex + 1} of ${total}`}
+              title={t('step.of', { a: stepIndex + 1, b: total })}
               accuracy={phase.score.accuracy}
               smoothness={phase.score.smoothness}
               stars={phase.score.stars}
               passed={phase.score.passed}
-              hint={hintText[phase.score.hint]}
+              hint={hintText(phase.score.hint)}
               onRetry={retry}
               onNext={next}
             />
@@ -212,7 +218,7 @@ function LessonRun({ lesson }: { lesson: LessonData }) {
           {phase.kind === 'result' && !phase.score.passed ? (
             <div>
               <Button variant="ghost" onClick={skip}>
-                Move on anyway
+                {t('lesson.moveOn')}
               </Button>
             </div>
           ) : null}
@@ -223,9 +229,9 @@ function LessonRun({ lesson }: { lesson: LessonData }) {
               outcomes={results}
               actions={
                 <>
-                  <Button onClick={begin}>Draw it again</Button>
+                  <Button onClick={begin}>{t('lesson.drawAgain')}</Button>
                   <ButtonLink to="/lessons" variant="secondary">
-                    More lessons
+                    {t('lesson.more')}
                   </ButtonLink>
                 </>
               }
@@ -247,10 +253,10 @@ function LessonRun({ lesson }: { lesson: LessonData }) {
               onUndo={() => board.undoLast(ME)}
               onClear={() => board.truncate(mark.current)}
               clearCopy={{
-                label: 'Start this step again',
-                title: 'Start this step again?',
-                description: 'What you drew in this step is removed. Earlier steps stay.',
-                confirm: 'Start again',
+                label: t('lesson.restartLabel'),
+                title: t('lesson.restartTitle'),
+                description: t('lesson.restartText'),
+                confirm: t('lesson.restartConfirm'),
               }}
             />
           ) : null}
@@ -263,7 +269,7 @@ function LessonRun({ lesson }: { lesson: LessonData }) {
               size={size}
               disabled={!drawing}
               onEngine={onEngine}
-              label={drawing ? `Lesson canvas, step ${stepIndex + 1} of ${total}. ${step.prompt}` : 'Your drawing'}
+              label={drawing ? t('lesson.canvasLabel', { n: stepIndex + 1, total, prompt }) : t('canvas.yours')}
             />
             {phase.kind !== 'done' ? (
               <GuideOverlay guide={step.guide} tolerance={step.tolerance} result={phase.kind === 'result' ? phase.score.guideCoverage : undefined} />
@@ -274,10 +280,10 @@ function LessonRun({ lesson }: { lesson: LessonData }) {
         {drawing ? (
           <div className="flex flex-wrap gap-2 lg:col-start-2 lg:row-start-2">
             <Button onClick={check} disabled={board.strokeCount <= mark.current}>
-              Check my drawing
+              {t('lesson.check')}
             </Button>
             <Button variant="ghost" onClick={skip}>
-              Skip step
+              {t('lesson.skip')}
             </Button>
           </div>
         ) : null}

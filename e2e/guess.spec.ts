@@ -1,3 +1,4 @@
+import { words } from '@penduet/lessons'
 import {
   test,
   expect,
@@ -39,8 +40,8 @@ async function round(players: { open(origin?: string, opts?: { viewport?: Viewpo
 }
 
 const answer = async (p: Player, text: string) => {
-  await p.page.getByLabel('One try: what is it?').fill(text)
-  await p.page.getByRole('button', { name: 'Guess' }).click()
+  await p.page.getByLabel('Your answer').fill(text)
+  await p.page.getByRole('button', { name: 'Send' }).click()
 }
 
 test.describe('Draw and guess', () => {
@@ -67,16 +68,20 @@ test.describe('Draw and guess', () => {
     await stroke(guesser, 600)
     expect(await ink(guesser.page)).toBe(seen)
 
-    // the canvas closes at the end of the burst: the drawer's next stroke does nothing
+    // the canvas closes at the end of the burst, and a window opens for each person
     await waitPhase(guesser, 'answer')
+    await expect(guesser.page.getByRole('dialog', { name: 'Guess the drawing!' })).toBeVisible()
+    await expect(drawer.page.getByRole('dialog', { name: /Waiting for the other player/ })).toBeVisible()
+    await expect(drawer.page.getByText(/Teo|Artist .* is looking at your drawing/).first()).toBeVisible().catch(() => undefined)
     const locked = await ink(drawer.page)
     await stroke(drawer, 600)
     expect(await ink(drawer.page)).toBe(locked)
-    await expect(drawer.page.getByText(/is guessing/)).toBeVisible()
 
     // one wrong try opens the canvas again, and the drawer hears about it
     await answer(guesser, 'definitely not it')
     await waitPhase(drawer, 'draw')
+    await expect(drawer.page.getByText('Not quite!')).toBeVisible()
+    await expect(guesser.page.getByText('Not quite!')).toBeVisible()
     await expect(drawer.page.getByText(/tried “definitely not it”/)).toBeVisible()
     await expect(guesser.page.getByText('Not “definitely not it”.')).toBeVisible()
     await stroke(drawer, 600)
@@ -88,7 +93,7 @@ test.describe('Draw and guess', () => {
     for (const p of [drawer, guesser]) {
       await waitPhase(p, 'result', 15_000)
       await expect(p.page.getByText('Got it! +3 points')).toBeVisible()
-      await expect(p.page.getByTestId('secret-word')).toHaveText(word)
+      await expect(p.page.getByTestId('secret-word').first()).toHaveText(word)
       await expect(p.page.getByText('Score 3. 1 of 1 rounds guessed.')).toBeVisible()
     }
     // and the finished drawing stays on screen to look at
@@ -103,12 +108,12 @@ test.describe('Draw and guess', () => {
     for (const p of [drawer, guesser]) {
       await waitPhase(p, 'result', 90_000)
       await expect(p.page.getByText(/No luck this time/)).toBeVisible()
-      await expect(p.page.getByTestId('secret-word')).toBeVisible()
+      await expect(p.page.getByTestId('secret-word').first()).toBeVisible()
     }
     // the next round: the roles swap, and the canvas is wiped
     await waitPhase(guesser, 'countdown', 30_000)
     await expect(guesser.page.getByRole('heading', { name: /Round 2: you draw/ })).toBeVisible()
-    await expect(guesser.page.getByTestId('secret-word')).toBeVisible()
+    await expect(guesser.page.getByTestId('secret-word').first()).toBeVisible()
     await expect(drawer.page.getByTestId('secret-word')).toHaveCount(0)
     expect(await ink(drawer.page)).toBe(0)
     expect(await ink(guesser.page)).toBe(0)
@@ -117,14 +122,14 @@ test.describe('Draw and guess', () => {
   test('GD-E2 an answer takes one try, and a reload during the round brings back where it stands', async ({ players }) => {
     const { drawer, guesser, word } = await round(players)
     await waitPhase(guesser, 'answer')
-    await guesser.page.getByLabel('One try: what is it?').fill('nope')
-    await guesser.page.getByLabel('One try: what is it?').press('Enter')
-    await expect(guesser.page.getByLabel('One try: what is it?')).toBeDisabled().catch(() => undefined) // the round may already have moved on
+    await guesser.page.getByLabel('Your answer').fill('nope')
+    await guesser.page.getByLabel('Your answer').press('Enter')
+    await expect(guesser.page.getByLabel('Your answer')).toBeDisabled().catch(() => undefined) // the round may already have moved on
     await waitPhase(drawer, 'draw')
 
     await drawer.page.reload()
     await expect(drawer.page.getByText('you, here')).toBeVisible()
-    await expect(drawer.page.getByTestId('secret-word')).toHaveText(word)
+    await expect(drawer.page.getByTestId('secret-word').first()).toHaveText(word)
     await expect(guesser.page.getByTestId('secret-word')).toHaveCount(0)
   })
 
@@ -134,6 +139,15 @@ test.describe('Draw and guess', () => {
     await expect(guesser.page.getByText(/Waiting for your partner/)).toBeVisible({ timeout: 15_000 })
     await expect(guesser.page.getByTestId('secret-word')).toHaveCount(0)
     await expect(panel(guesser)).toHaveAttribute('data-phase', 'waiting')
+  })
+
+  test('GD-E7 the answer may be in the other language: an English reader can answer in Spanish', async ({ players }) => {
+    const { guesser, word } = await round(players)
+    const entry = words.find((w) => w.word === word)!
+    await waitPhase(guesser, 'answer')
+    await answer(guesser, `El ${entry.es}`.toUpperCase())
+    await waitPhase(guesser, 'result', 15_000)
+    await expect(guesser.page.getByText(/Got it! \+\d points?/)).toBeVisible()
   })
 
   test('GD-E4 the rooms hub says what the game is', async ({ page }) => {
@@ -160,7 +174,7 @@ test.describe('Draw and guess on a phone @mobile', () => {
   test.setTimeout(150_000)
   const phone = { width: 390, height: 844 }
 
-  test('GD-E6 the word, the clock and the answer box are on the canvas, and nothing runs off the side', async ({ players }) => {
+  test('GD-E6 the word and the clock are on the canvas, the answer window sits above it, and nothing runs off the side', async ({ players }) => {
     const { drawer, guesser, word } = await round(players, phone)
     for (const p of [drawer, guesser]) {
       expect(await p.page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0)
@@ -174,19 +188,19 @@ test.describe('Draw and guess on a phone @mobile', () => {
     expect(pillBox.y).toBeGreaterThanOrEqual(c.y)
     expect(pillBox.y + pillBox.height).toBeLessThanOrEqual(c.y + c.height)
 
-    // the guesser answers from the canvas, without scrolling
+    // the guesser answers in a window above the canvas, without scrolling
     await waitPhase(guesser, 'answer')
-    const box = guesser.page.getByLabel('One try: what is it?')
+    const box = guesser.page.getByLabel('Your answer')
     await expect(box).toBeInViewport()
     const [b, gc] = [(await box.boundingBox())!, (await guesser.page.getByRole('img', { name: /Shared canvas/ }).boundingBox())!]
-    expect(b.y).toBeGreaterThanOrEqual(gc.y)
-    expect(b.y + b.height).toBeLessThanOrEqual(gc.y + gc.height)
+    expect(b.y + b.height).toBeLessThanOrEqual(gc.y + 4)
     await answer(guesser, 'nothing')
     await waitPhase(guesser, 'draw')
     await waitPhase(guesser, 'answer')
     await answer(guesser, word)
     await waitPhase(guesser, 'result', 15_000)
     await expect(guesser.page.getByText('Got it! +3 points')).toBeAttached()
+    await expect(guesser.page.getByTestId('guess-modal')).toHaveAttribute('data-kind', 'result')
     await expectNoAxeViolations(guesser.page, 'draw and guess on a phone: result')
   })
 })

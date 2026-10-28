@@ -1,88 +1,37 @@
 import type { CSSProperties } from 'react'
 import { Gift, HeartHandshake, MousePointer2, Puzzle, ShieldCheck, Split, type LucideIcon } from 'lucide-react'
 import { BrushUnderline } from '../components/Brand'
+import { useT, type StringKey } from '../i18n'
 import { useRealtimeHealth } from '../data/realtimeHealth'
 import { ButtonLink, cn } from '../ui'
 import { usePageTitle } from '../usePageTitle'
 
-const statusText = {
-  checking: 'Checking the rooms…',
-  online: 'Rooms are open.',
-  offline: 'Rooms are not reachable right now. Drawing on your own still works.',
-} as const
+const statusKey = { checking: 'home.status.checking', online: 'home.status.online', offline: 'home.status.offline' } as const satisfies Record<string, StringKey>
 
 const swatches = ['--color-paint-red', '--color-paint-yellow', '--color-paint-green', '--color-accent', '--color-paint-pink']
 
-const steps = [
-  { title: 'Open a room', text: 'Press "Create room". You get a six-character code, and a link if you prefer.', tone: '--color-paint-yellow' },
-  { title: 'Send the code', text: 'Your friend types it in, or opens the link. No account, no sign-up form.', tone: '--color-paint-pink' },
-  { title: 'Draw', text: 'Free canvas, or pick a lesson and trace it together. You both see every line as it is drawn.', tone: '--color-paint-green' },
+const steps: { title: StringKey; text: StringKey; tone: string }[] = [
+  { title: 'home.how.1.title', text: 'home.how.1.text', tone: '--color-paint-yellow' },
+  { title: 'home.how.2.title', text: 'home.how.2.text', tone: '--color-paint-pink' },
+  { title: 'home.how.3.title', text: 'home.how.3.text', tone: '--color-paint-green' },
 ]
 
-const features: { title: string; text: string; icon: LucideIcon; tone: string }[] = [
-  {
-    icon: HeartHandshake,
-    tone: '--color-paint-red',
-    title: 'Real people only',
-    text: 'A room holds the people you gave the code to. No bots, no replays of someone else’s drawing, no matching with strangers.',
-  },
-  {
-    icon: Gift,
-    tone: '--color-paint-yellow',
-    title: 'Nothing is locked',
-    text: 'Every lesson, every tool and every room works today. There are no ads, no energy meter and no trial screen.',
-  },
-  {
-    icon: Puzzle,
-    tone: '--color-accent',
-    title: 'Lessons you can do together',
-    text: 'Trace a guide, get a score for how close and how steady you were, then try again. Do it side by side on one canvas.',
-  },
-  {
-    icon: Split,
-    tone: '--color-paint-green',
-    title: 'Games for two',
-    text: 'Not just lessons: draw half of a picture each and meet in the middle, get a topic to draw together, or pass the pen one stroke at a time.',
-  },
-  {
-    icon: MousePointer2,
-    tone: '--color-paint-pink',
-    title: 'Works with what you have',
-    text: 'A mouse, a finger or a pen. A pen is nice, but you never need one.',
-  },
-  {
-    icon: ShieldCheck,
-    tone: '--color-player-2',
-    title: 'Your name, your data',
-    text: 'Pick a name, or keep the one you get. Delete everything from Settings whenever you like.',
-  },
+const features: { title: StringKey; text: StringKey; icon: LucideIcon; tone: string }[] = [
+  { icon: HeartHandshake, tone: '--color-paint-red', title: 'home.f.real.title', text: 'home.f.real.text' },
+  { icon: Gift, tone: '--color-paint-yellow', title: 'home.f.free.title', text: 'home.f.free.text' },
+  { icon: Puzzle, tone: '--color-accent', title: 'home.f.lessons.title', text: 'home.f.lessons.text' },
+  { icon: Split, tone: '--color-paint-green', title: 'home.f.games.title', text: 'home.f.games.text' },
+  { icon: MousePointer2, tone: '--color-paint-pink', title: 'home.f.input.title', text: 'home.f.input.text' },
+  { icon: ShieldCheck, tone: '--color-player-2', title: 'home.f.data.title', text: 'home.f.data.text' },
 ]
 
-const faq = [
-  {
-    q: 'Is it really free?',
-    a: 'Yes. Everything in Penduet today is free, for personal use: lessons, rooms, tools and saving a picture, with no ads. Later versions may add ads or an optional paid plan to cover running costs. We would announce that first, and a paid plan would always be optional and cancel in one click.',
-  },
-  {
-    q: 'Do I need an account?',
-    a: 'No. You are signed in as a guest the first time you open a room. Pick a name in Settings if you like.',
-  },
-  {
-    q: 'How many people can draw in a room?',
-    a: 'Two. Rooms are invite-only.',
-  },
-  {
-    q: 'What happens to my drawing?',
-    a: 'Free draw is kept on your device. In a room, use "Save as image" before you leave: the room itself is cleared after a day.',
-  },
-  {
-    q: 'Is it safe for children?',
-    a: 'There is no chat and no matching with strangers: someone has to give a person the code. We have not built parental controls, age checks or a report button yet, so a child should draw with an adult nearby.',
-  },
-  {
-    q: 'Does it work on a tablet or a phone?',
-    a: 'Yes, in the browser. Mouse, touch and pen input are all supported, though it has not been tried on many devices yet. It is a web app for now, not yet in the app stores.',
-  },
+const faq: { q: StringKey; a: StringKey }[] = [
+  { q: 'home.faq.free.q', a: 'home.faq.free.a' },
+  { q: 'home.faq.account.q', a: 'home.faq.account.a' },
+  { q: 'home.faq.people.q', a: 'home.faq.people.a' },
+  { q: 'home.faq.drawing.q', a: 'home.faq.drawing.a' },
+  { q: 'home.faq.kids.q', a: 'home.faq.kids.a' },
+  { q: 'home.faq.devices.q', a: 'home.faq.devices.a' },
 ]
 
 const delay = (i: number) => ({ ['--i' as string]: i }) as CSSProperties
@@ -101,6 +50,7 @@ function Swatches() {
 
 // S02 Home, and the page that explains the product to someone who has not seen it.
 export function Home() {
+  const { t } = useT()
   usePageTitle()
   const status = useRealtimeHealth()
   return (
@@ -120,25 +70,25 @@ export function Home() {
         <div className="flex flex-col gap-6">
           <Swatches />
           <h1 id="hero-title" className="rise text-[2.125rem] font-bold leading-[1.1] min-[400px]:text-[2.5rem] sm:text-[3.5rem] lg:text-[4rem]">
-            Draw with{' '}
+            {t('home.hero.before')}{' '}
             <span className="brush-underline">
-              someone you know
+              {t('home.hero.brush')}
               <BrushUnderline />
             </span>
             .
           </h1>
           <p className="rise max-w-prose text-lg text-muted" style={delay(2)}>
-            Open a room, send the code, and draw on one canvas. The other person is always a real person: no bots, no ads, no energy meter.
+            {t('home.hero.lead')}
           </p>
           <div className="rise flex flex-wrap gap-3" style={delay(3)}>
             <ButtonLink to="/together" size="lg">
-              Start a room
+              {t('home.hero.start')}
             </ButtonLink>
             <ButtonLink to="/lessons" size="lg" variant="secondary">
-              Try a lesson
+              {t('home.hero.lesson')}
             </ButtonLink>
             <ButtonLink to="/draw" size="lg" variant="ghost">
-              Draw on your own
+              {t('home.hero.solo')}
             </ButtonLink>
           </div>
           <p role="status" className={cn('flex items-center gap-2 text-sm font-semibold', status === 'offline' ? 'text-warning-text' : 'text-muted')}>
@@ -146,7 +96,7 @@ export function Home() {
               aria-hidden="true"
               className={cn('h-2.5 w-2.5 rounded-pill', status === 'online' ? 'breathe bg-success' : status === 'offline' ? 'bg-warning-text' : 'bg-input')}
             />
-            {statusText[status]}
+            {t(statusKey[status])}
           </p>
         </div>
         <picture className="rise relative" style={delay(2)}>
@@ -155,7 +105,7 @@ export function Home() {
             src="/landing/room-desktop.png"
             width="2560"
             height="1600"
-            alt="A room with two people in it. One drew an orange sun, the other added blue rays. The tools are on the left of the canvas."
+            alt={t('home.hero.alt')}
             className="max-h-[28rem] w-full rotate-1 rounded-lg border-[6px] border-raised object-cover object-top shadow-canvas transition-transform duration-base ease-out hover:rotate-0 sm:max-h-none"
           />
         </picture>
@@ -164,18 +114,15 @@ export function Home() {
       <section aria-labelledby="problem-title" className="relative flex max-w-3xl flex-col gap-4 md:pl-6">
         <span aria-hidden="true" className="absolute left-0 top-1 hidden h-16 w-1.5 rounded-pill bg-paint-red md:block" />
         <h2 id="problem-title" className="text-xl font-bold md:text-[2rem] md:leading-tight">
-          Drawing together should not need a payment plan
+          {t('home.problem.title')}
         </h2>
-        <p className="text-muted">
-          Many drawing apps are free to download and then lock almost everything behind a subscription, or make you wait for an energy bar to
-          refill. Many say you can draw with other people, and then pair you with a bot.
-        </p>
-        <p className="text-muted">Penduet does the one thing: you and a friend, one canvas, now.</p>
+        <p className="text-muted">{t('home.problem.p1')}</p>
+        <p className="text-muted">{t('home.problem.p2')}</p>
       </section>
 
       <section aria-labelledby="how-title" className="flex flex-col gap-6">
         <h2 id="how-title" className="text-xl font-bold md:text-[2rem]">
-          How it works
+          {t('home.how.title')}
         </h2>
         <ol className="grid gap-4 md:grid-cols-3">
           {steps.map((s, i) => (
@@ -187,8 +134,8 @@ export function Home() {
               >
                 {i + 1}
               </span>
-              <h3 className="text-lg font-semibold">{s.title}</h3>
-              <p className="text-muted">{s.text}</p>
+              <h3 className="text-lg font-semibold">{t(s.title)}</h3>
+              <p className="text-muted">{t(s.text)}</p>
             </li>
           ))}
         </ol>
@@ -196,7 +143,7 @@ export function Home() {
 
       <section aria-labelledby="features-title" className="flex flex-col gap-6">
         <h2 id="features-title" className="text-xl font-bold md:text-[2rem]">
-          What you get
+          {t('home.features.title')}
         </h2>
         <ul className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {features.map((f, i) => (
@@ -204,8 +151,8 @@ export function Home() {
               <span aria-hidden="true" className="mb-1 flex h-11 w-11 items-center justify-center rounded-md" style={wash(f.tone)}>
                 <f.icon className="h-6 w-6 text-fg" strokeWidth={2} />
               </span>
-              <h3 className="text-lg font-semibold">{f.title}</h3>
-              <p className="text-muted">{f.text}</p>
+              <h3 className="text-lg font-semibold">{t(f.title)}</h3>
+              <p className="text-muted">{t(f.text)}</p>
             </li>
           ))}
         </ul>
@@ -217,29 +164,25 @@ export function Home() {
         style={wash('--color-paint-yellow', 22)}
       >
         <h2 id="price-title" className="text-xl font-bold md:text-[2rem]">
-          Price: nothing
+          {t('home.price.title')}
         </h2>
-        <p className="text-fg">
-          Penduet is free. This first version has no ads, no energy and no trial that turns into a charge. If that changes later, for
-          example ads or an optional paid extra to help pay for the servers, we will announce it here first and update the privacy policy
-          before it starts. Anything paid will show its price before you commit, and you will cancel it in one click.
-        </p>
+        <p className="text-fg">{t('home.price.text')}</p>
       </section>
 
       <section aria-labelledby="faq-title" className="flex max-w-3xl flex-col gap-4">
         <h2 id="faq-title" className="text-xl font-bold md:text-[2rem]">
-          Questions
+          {t('home.faq.title')}
         </h2>
         <div className="flex flex-col gap-2">
           {faq.map((item) => (
             <details key={item.q} className="group paper px-5 py-1 open:pb-4">
               <summary className="flex min-h-touch cursor-pointer list-none items-center justify-between gap-4 font-bold [&::-webkit-details-marker]:hidden">
-                {item.q}
+                {t(item.q)}
                 <span aria-hidden="true" className="text-2xl leading-none text-muted transition-transform duration-base ease-out group-open:rotate-45">
                   +
                 </span>
               </summary>
-              <p className="text-muted">{item.a}</p>
+              <p className="text-muted">{t(item.a)}</p>
             </details>
           ))}
         </div>
@@ -248,10 +191,10 @@ export function Home() {
       <section aria-labelledby="cta-title" className="flex flex-col items-start gap-4 pb-8">
         <Swatches />
         <h2 id="cta-title" className="text-xl font-bold md:text-[2rem]">
-          Open a room and send the code.
+          {t('home.cta.title')}
         </h2>
         <ButtonLink to="/together" size="lg">
-          Start a room
+          {t('home.hero.start')}
         </ButtonLink>
       </section>
     </div>

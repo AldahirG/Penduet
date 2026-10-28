@@ -171,3 +171,11 @@ A new look, "atelier": warm paper, oil-paint colours, serif headlines and motion
 - Answers ignore case, accents, articles and spaces; accept aliases, a plural and one mistyped letter (never another word of the list).
 - Tests: protocol/lessons/realtime/web unit, Worker e2e (`GAME_SPEED` runs it at a fraction of the pace), Playwright desktop and phone (149 passing, incl. axe).
 - Not done: Spanish words and UI (the app is English only); sounds; a "next round now" button; a real-device test.
+
+## Draw and guess, round two: pace, windows, sound; and Spanish (2026-10-28)
+- Pace like Pictionary: four 15 s bursts (a minute of drawing), a 12 s answer window after each, a 5 s countdown, a result of about 13 s; 10 s grace for a dropped player. The canvas shuts 300 ms before the room does.
+- When the canvas locks a window opens over a blurred page (the canvas sits above the blur so the drawing stays sharp): the guesser gets "Guess the drawing!" with a countdown ring and one answer box; the drawer gets "Waiting for the other player's answer". A wrong answer or an unused window shows a shaking "Not quite!" / "Time is up!" burst to both. The end of a round is a drum roll, then the word, points, stars, a score and, for a win, confetti.
+- Sounds are made with Web Audio on the spot (no files): ticks, countdown beeps, a wheel, a lock, a buzz, a drum roll, a crash and fanfare, a sad slide. One switch mutes them (remembered); reduced motion skips confetti.
+- `.page-enter` now uses `backwards` fill: a finished `both` animation kept `transform` and made the page the containing block of every fixed element.
+- Spanish/English: small store outside React (`i18n/index.ts`), strings as pairs, Spanish default, header button + Settings; lessons, topics, halves, 115 words and both legal pages translated; guesses count in either language, typos forgiven (never another word of the list). Tests read English (fixtures set it per tab); `language.spec.ts` covers the Spanish default, the switch, persistence, lessons, rooms, legal pages, axe and the 390px header.
+- Not done: the guest name still comes from the database as "Artist …"; no real-device test; sounds not listened to by a person in this environment; legal Spanish is a translation of text a lawyer has not read.

@@ -52,6 +52,16 @@ export const test = base.extend<Fixtures>({
       async open(origin = ORIGIN_A, opts = {}) {
         const context = await browser.newContext({ baseURL: origin, reducedMotion: 'reduce', ...(opts.viewport ? { viewport: opts.viewport } : {}) })
         contexts.push(context)
+        // The app starts in Spanish. These tests read English, so every visitor here has chosen it (the language tests change it on purpose).
+        await context.addInitScript(() => {
+          try {
+            // Once per tab (the session flag), so a test that clears the choice and reloads really sees the default.
+            if (!window.sessionStorage.getItem('__lang_set') && !window.localStorage.getItem('penduet.lang')) window.localStorage.setItem('penduet.lang', 'en')
+            window.sessionStorage.setItem('__lang_set', '1')
+          } catch {
+            // storage blocked
+          }
+        })
         // Remember every WebSocket the page opens, so a test can cut the connection like a bad network would.
         await context.addInitScript(() => {
           const Native = window.WebSocket

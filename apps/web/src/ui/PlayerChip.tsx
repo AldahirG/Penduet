@@ -1,3 +1,4 @@
+import { useT, type StringKey } from '../i18n'
 import { cn } from './cn'
 
 export type PlayerStatus = 'online' | 'drawing' | 'reconnecting' | 'left' | 'waiting'
@@ -11,17 +12,19 @@ export interface PlayerChipProps {
   className?: string
 }
 
-const statusText: Record<PlayerStatus, string> = {
-  online: 'here',
-  drawing: 'drawing',
-  reconnecting: 'reconnecting',
-  left: 'left',
-  waiting: 'not here yet',
+const statusKey: Record<PlayerStatus, StringKey> = {
+  online: 'chip.here',
+  drawing: 'chip.drawing',
+  reconnecting: 'chip.reconnecting',
+  left: 'chip.left',
+  waiting: 'chip.waiting',
 }
 
 /** The dot is decoration: the name and the status text always carry the meaning. */
 export function PlayerChip({ name, slot, status, isMe = false, className }: PlayerChipProps) {
-  const label = `${isMe ? `${name} (you)` : name}, ${statusText[status]}`
+  const { t } = useT()
+  const word = t(statusKey[status])
+  const label = isMe ? t('chip.labelYou', { name, status: word }) : t('chip.label', { name, status: word })
   return (
     <span
       role="group"
@@ -43,7 +46,7 @@ export function PlayerChip({ name, slot, status, isMe = false, className }: Play
       />
       <span aria-hidden="true">{name}</span>
       <span aria-hidden="true" className="text-xs text-muted">
-        {isMe ? `you, ${statusText[status]}` : statusText[status]}
+        {isMe ? t('chip.you', { status: word }) : word}
       </span>
     </span>
   )

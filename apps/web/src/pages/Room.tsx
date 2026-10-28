@@ -3,12 +3,15 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { Download, LogOut, UserPlus } from 'lucide-react'
 import { roomCodeSchema } from '@penduet/protocol'
 import { Stub } from '../components/Stub'
+import { lessonText } from '@penduet/lessons'
+import { useT } from '../i18n'
 import { usePageTitle } from '../usePageTitle'
 import { ROOMS_ARE_LIVE, RoomError, rooms } from '../data/rooms'
 import { useRoomSession } from '../data/useRoomSession'
 import { GamePanel, useGame } from '../games/GamePanel'
 import { HalvesOverlay } from '../games/HalvesOverlay'
 import { GuessCanvasOverlay } from '../games/GuessPanel'
+import { GuessStage, stageIsOpen } from '../games/GuessStage'
 import { RoomLessonPanel, useRoomLesson } from '../lessons/RoomLesson'
 import { DrawingCanvas } from '../drawing/DrawingCanvas'
 import { CANVAS_BOX_ROOM } from '../drawing/layout'
@@ -31,14 +34,15 @@ import {
 
 // S10 Lobby and S11 shared canvas on one page: you can draw while you wait for your partner.
 export function Room() {
+  const { t } = useT()
   const { code = '' } = useParams()
 
   if (!roomCodeSchema.safeParse(code).success) {
     return (
-      <Stub screen="S10" title="That does not look like a room code" milestone="M2">
+      <Stub screen="S10" title={t('room.badCode')} milestone="M2">
         <ConnectionBanner kind="room-expired" />
         <ButtonLink to="/together" variant="secondary" className="self-start">
-          Back to rooms
+          {t('room.backToRooms')}
         </ButtonLink>
       </Stub>
     )
@@ -46,29 +50,27 @@ export function Room() {
   return ROOMS_ARE_LIVE ? <LiveRoom code={code} /> : <DemoRoom code={code} />
 }
 
-const strokeWords = (n: number, who: string) => `${who} drew ${n} ${n === 1 ? 'stroke' : 'strokes'}`
-
 /** No Supabase project configured: the lobby can be shown, but nothing is shared. */
 function DemoRoom({ code }: { code: string }) {
+  const { t } = useT()
   return (
-    <Stub screen="S10 · S11" title="Your room (demo mode)" milestone="M2">
+    <Stub screen="S10 · S11" title={t('room.demoTitle')} milestone="M2">
       <RoomCodeDisplay code={code} link={`${window.location.origin}/room/${code}`} />
       <div className="flex flex-wrap gap-2">
-        <PlayerChip name="You" slot={1} status="online" isMe />
-        <PlayerChip name="Partner" slot={2} status="waiting" />
+        <PlayerChip name={t('room.you')} slot={1} status="online" isMe />
+        <PlayerChip name={t('room.partner')} slot={2} status="waiting" />
       </div>
-      <p className="text-muted">
-        The live canvas needs the backend. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY (see apps/web/.env.example) and restart.
-      </p>
+      <p className="text-muted">{t('room.demoText')}</p>
       <ButtonLink to="/together" variant="secondary" className="self-start">
-        Leave room
+        {t('room.leaveRoom')}
       </ButtonLink>
     </Stub>
   )
 }
 
 function LiveRoom({ code }: { code: string }) {
-  usePageTitle(`Room ${code}`)
+  const { t, tn, lang } = useT()
+  usePageTitle(t('title.room', { code }))
   const navigate = useNavigate()
   const toast = useToast()
   const { board, state, isHost, socket } = useRoomSession(code)
@@ -126,7 +128,7 @@ function LiveRoom({ code }: { code: string }) {
     try {
       await rooms.end(code)
     } catch (err) {
-      toast.show(err instanceof RoomError && err.code === 'room_not_found' ? 'Only the host can end the room.' : 'Could not end the room. Try again.', 'error')
+      toast.show(err instanceof RoomError && err.code === 'room_not_found' ? t('room.endOnlyHost') : t('room.endFail'), 'error')
     }
   }
 
@@ -150,7 +152,7 @@ function LiveRoom({ code }: { code: string }) {
           "here") must not make the row wrap or unwrap, because that moves the canvas under a stroke. */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 id="room-title" className="font-display text-xl font-bold">
-          Room{' '}
+          {t('room.title')}{' '}
           <span
             className="rounded-md px-2 font-mono tracking-widest"
             style={{ background: 'color-mix(in srgb, var(--color-paint-yellow) 35%, var(--color-surface-raised))' }}
@@ -165,23 +167,23 @@ function LiveRoom({ code }: { code: string }) {
               icon={<UserPlus aria-hidden="true" className="h-4 w-4" />}
               onClick={() => setInviting(true)}
             >
-              Invite
+              {t('room.invite')}
             </Button>
           ) : null}
           {showCanvas ? (
             <Button variant="secondary" icon={<Download aria-hidden="true" className="h-4 w-4" />} onClick={() => save(`room-${code}`)}>
-              Save as image
+              {t('common.saveImage')}
             </Button>
           ) : null}
           {status !== 'ended' && status !== 'gone' ? (
             <>
               {isHost ? (
                 <Button variant="secondary" onClick={() => setConfirmEnd(true)}>
-                  End room
+                  {t('room.end')}
                 </Button>
               ) : null}
               <Button variant="ghost" loading={leaving} icon={<LogOut aria-hidden="true" className="h-4 w-4" />} onClick={leave}>
-                Leave
+                {t('room.leave')}
               </Button>
             </>
           ) : null}
@@ -189,11 +191,11 @@ function LiveRoom({ code }: { code: string }) {
       </div>
       <div className="flex min-h-[4.5rem] flex-wrap content-start items-center gap-2 sm:min-h-0">
         {state.you ? <PlayerChip name={state.you.name} slot={state.you.slot} status={myStatus} isMe /> : null}
-        <PlayerChip name={state.peer?.name ?? 'Partner'} slot={state.peer?.slot ?? (state.you?.slot === 1 ? 2 : 1)} status={peerStatus} />
+        <PlayerChip name={state.peer?.name ?? t('room.partner')} slot={state.peer?.slot ?? (state.you?.slot === 1 ? 2 : 1)} status={peerStatus} />
       </div>
 
       <p role="status" className="sr-only">
-        {state.peer ? `${state.peer.name} ${state.peerLeft ? 'left the room' : 'is in the room'}` : ''}
+        {state.peer ? t(state.peerLeft ? 'room.srPeerLeft' : 'room.srPeerIn', { name: state.peer.name }) : ''}
       </p>
 
       {status === 'full' ? <ConnectionBanner kind="room-full" /> : null}
@@ -201,12 +203,12 @@ function LiveRoom({ code }: { code: string }) {
 
       {status === 'ended' ? (
         <div className="rise flex flex-col items-start gap-3 paper p-4">
-          <h2 className="font-display text-lg font-semibold">The room has closed</h2>
-          <p className="text-muted">The host ended it. Your drawing is still below, so save it before you leave.</p>
+          <h2 className="font-display text-lg font-semibold">{t('room.closedTitle')}</h2>
+          <p className="text-muted">{t('room.closedText')}</p>
           {me ? (
             <p className="text-sm text-muted">
-              {strokeWords(board.strokesSince(0).filter((s) => s.authorId === me).length, 'You')}
-              {state.peer ? `, ${strokeWords(board.strokesSince(0).filter((s) => s.authorId === state.peer!.id).length, state.peer.name)}` : ''}.
+              {tn('room.drewYou', board.strokesSince(0).filter((s) => s.authorId === me).length)}
+              {state.peer ? `, ${tn('room.drew', board.strokesSince(0).filter((s) => s.authorId === state.peer!.id).length, { name: state.peer.name })}` : ''}.
             </p>
           ) : null}
         </div>
@@ -214,7 +216,7 @@ function LiveRoom({ code }: { code: string }) {
 
       {status === 'connecting' ? (
         <p className="flex items-center gap-2 text-muted">
-          <Spinner /> Getting you in…
+          <Spinner /> {t('room.gettingIn')}
         </p>
       ) : null}
 
@@ -248,15 +250,15 @@ function LiveRoom({ code }: { code: string }) {
               clearCopy={
                 rl
                   ? {
-                      label: 'Start this step again',
-                      title: 'Start this step again?',
-                      description: 'What either of you drew in this step is removed for both. Earlier steps stay.',
-                      confirm: 'Start again',
+                      label: t('lesson.restartLabel'),
+                      title: t('lesson.restartTitle'),
+                      description: t('lesson.restartTextRoom'),
+                      confirm: t('lesson.restartConfirm'),
                     }
                   : undefined
               }
             />
-            <div className={`relative rounded-lg ring-4 ring-raised ${CANVAS_BOX_ROOM}`}>
+            <div className={`relative rounded-lg ring-4 ring-raised ${CANVAS_BOX_ROOM} ${game?.kind === 'guess' && stageIsOpen(game.phase) ? 'z-[55]' : ''}`}>
               <DrawingCanvas
                 board={board}
                 authorId={me ?? 'pending'}
@@ -272,15 +274,19 @@ function LiveRoom({ code }: { code: string }) {
                 onStrokeEnd={(id) => socket.sendEnd(id)}
                 label={
                   rl && rl.step
-                    ? `Shared lesson canvas, step ${rl.stepIndex + 1} of ${rl.lesson.steps.length}. ${rl.step.prompt}`
+                    ? t('room.canvasLesson', { n: rl.stepIndex + 1, total: rl.lesson.steps.length, prompt: lessonText(rl.lesson, lang).steps[rl.stepIndex] ?? rl.step.prompt })
                     : game?.kind === 'topic'
-                      ? `Shared canvas. Topic: ${game.topic}`
+                      ? t('room.canvasTopic', { topic: game.topic })
                       : game?.kind === 'turns'
-                        ? `Shared canvas. ${game.myTurn ? 'It is your turn.' : `It is ${game.peerName}'s turn.`}`
+                        ? game.myTurn
+                          ? t('room.canvasTurnMine')
+                          : t('room.canvasTurnPeer', { name: game.peerName })
                         : game?.kind === 'halves'
-                          ? `Shared canvas, split down the middle. ${game.title}. You draw the ${game.side} half.`
+                          ? t('room.canvasHalves', { title: game.title, side: t(game.side === 'left' ? 'side.left' : 'side.right') })
                           : game?.kind === 'guess'
-                            ? `Shared canvas for draw and guess. ${game.amDrawer ? 'You are drawing.' : `${game.peerName} is drawing.`}`
+                            ? game.amDrawer
+                              ? t('room.canvasGuessMe')
+                              : t('room.canvasGuessPeer', { name: game.peerName })
                             : undefined
                 }
               />
@@ -291,6 +297,9 @@ function LiveRoom({ code }: { code: string }) {
               ) : null}
             </div>
           </div>
+
+          {/* Draw and guess: when the canvas locks (and when a round ends) a window opens over a blurred page; the canvas sits above the blur, so the drawing stays sharp. */}
+          {game?.kind === 'guess' ? <GuessStage g={game} /> : null}
 
           {/* Draw and guess: on a phone the panel (word, answer box, clock) sits under the canvas, so the canvas stays where it is. */}
           {game?.kind === 'guess' && status !== 'connecting' ? (
@@ -311,28 +320,28 @@ function LiveRoom({ code }: { code: string }) {
               </div>
             ) : null}
             {status === 'reconnecting' ? <ConnectionBanner kind="reconnecting" /> : null}
-            {status === 'replaced' ? <ConnectionBanner kind="replaced" action={{ label: 'Use this tab', onClick: () => socket.connect() }} /> : null}
+            {status === 'replaced' ? <ConnectionBanner kind="replaced" action={{ label: t('banner.useTab'), onClick: () => socket.connect() }} /> : null}
             {status === 'live' && state.peerLeft ? <ConnectionBanner kind="peer-left" /> : null}
           </div>
         </div>
       ) : (
         <ButtonLink to="/together" variant="secondary" className="self-start">
-          Back to rooms
+          {t('room.backToRooms')}
         </ButtonLink>
       )}
 
       {status === 'ended' ? (
         <ButtonLink to="/together" variant="secondary" className="self-start">
-          Back to rooms
+          {t('room.backToRooms')}
         </ButtonLink>
       ) : null}
 
       <Modal
         open={inviting}
         onOpenChange={setInviting}
-        title="Invite a friend"
-        description="Send them this code or link. Up to two people can draw in a room."
-        cancelLabel="Close"
+        title={t('room.inviteTitle')}
+        description={t('room.inviteText')}
+        cancelLabel={t('room.close')}
       >
         <RoomCodeDisplay code={code} link={`${window.location.origin}/room/${code}`} />
       </Modal>
@@ -340,9 +349,9 @@ function LiveRoom({ code }: { code: string }) {
       <Modal
         open={confirmEnd}
         onOpenChange={setConfirmEnd}
-        title="End the room for everyone?"
-        description="Both of you are disconnected. You can still save the drawing from this page."
-        confirm={{ label: 'End room', destructive: true, onClick: end }}
+        title={t('room.endTitle')}
+        description={t('room.endText')}
+        confirm={{ label: t('room.end'), destructive: true, onClick: end }}
       />
     </section>
   )

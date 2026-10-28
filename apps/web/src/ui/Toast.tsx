@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { CircleAlert, CircleCheck, Info, X } from 'lucide-react'
+import { useT } from '../i18n'
 import { cn } from './cn'
 
 export type ToastKind = 'info' | 'success' | 'error'
@@ -55,6 +56,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 }
 
 function ToastView({ item, onDismiss }: { item: ToastItem; onDismiss: (id: number) => void }) {
+  const { t } = useT()
   const Icon = icons[item.kind]
   useEffect(() => {
     // Errors stay until dismissed, so nobody misses them.
@@ -75,7 +77,7 @@ function ToastView({ item, onDismiss }: { item: ToastItem; onDismiss: (id: numbe
       <span className="text-fg">{item.message}</span>
       <button
         type="button"
-        aria-label="Dismiss message"
+        aria-label={t('common.dismiss')}
         onClick={() => onDismiss(item.id)}
         className="-mr-2 grid h-touch w-touch place-items-center rounded-md text-muted hover:text-fg"
       >

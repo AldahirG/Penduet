@@ -1,7 +1,8 @@
 import { useMemo, useState, type CSSProperties } from 'react'
 import { Star } from 'lucide-react'
-import { lessons, type Lesson } from '@penduet/lessons'
+import { lessonText, lessons, type Lesson } from '@penduet/lessons'
 import { getProgress } from '../data/progress'
+import { tDyn, useT } from '../i18n'
 import { ButtonLink, cn } from '../ui'
 import { usePageTitle } from '../usePageTitle'
 
@@ -57,7 +58,8 @@ function Dots({ level }: { level: number }) {
 
 // The lessons, each with its theme, and the best result on this device.
 export function Lessons() {
-  usePageTitle('Lessons')
+  const { t, lang } = useT()
+  usePageTitle(t('title.lessons'))
   const progress = getProgress()
   const [theme, setTheme] = useState<string>('All')
   const shown = useMemo(() => (theme === 'All' ? lessons : lessons.filter((l) => l.theme === theme)), [theme])
@@ -68,13 +70,13 @@ export function Lessons() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="max-w-xl">
           <h1 id="lessons-title" className="text-xl font-bold sm:text-display">
-            Lessons
+            {t('lessons.title')}
           </h1>
-          <p className="text-muted">Short guided drawings. Trace the dashed line, check your work, and move on.</p>
+          <p className="text-muted">{t('lessons.lead')}</p>
         </div>
         <div className="flex min-w-48 flex-col gap-1.5 text-sm font-bold text-muted">
           <span>
-            {drawn} of {lessons.length} drawn
+            {t('lessons.drawn', { drawn, total: lessons.length })}
           </span>
           <span aria-hidden="true" className="h-2.5 overflow-hidden rounded-pill bg-surface ring-1 ring-inset ring-[color:var(--color-border)]">
             <span
@@ -85,22 +87,22 @@ export function Lessons() {
         </div>
       </div>
 
-      <div role="group" aria-label="Filter by theme" className="scrollbar-none -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 md:mx-0 md:flex-wrap md:px-0">
-        {['All', ...themes].map((t) => {
-          const on = t === theme
+      <div role="group" aria-label={t('lessons.filter')} className="scrollbar-none -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 md:mx-0 md:flex-wrap md:px-0">
+        {['All', ...themes].map((th) => {
+          const on = th === theme
           return (
             <button
-              key={t}
+              key={th}
               type="button"
               aria-pressed={on}
-              onClick={() => setTheme(t)}
+              onClick={() => setTheme(th)}
               className={cn(
                 'inline-flex min-h-touch shrink-0 items-center gap-2 rounded-pill border px-4 text-sm font-bold transition duration-fast ease-out active:scale-95',
                 on ? 'border-transparent bg-fg text-bg' : 'border-line bg-raised text-fg hover:bg-surface',
               )}
             >
-              {t !== 'All' ? <span aria-hidden="true" className="h-2.5 w-2.5 rounded-pill" style={{ background: toneOf(t) }} /> : null}
-              {t}
+              {th !== 'All' ? <span aria-hidden="true" className="h-2.5 w-2.5 rounded-pill" style={{ background: toneOf(th) }} /> : null}
+              {th === 'All' ? t('lessons.all') : tDyn(`lt.${th}`, th)}
             </button>
           )
         })}
@@ -110,6 +112,7 @@ export function Lessons() {
         {shown.map((l, idx) => {
           const best = progress[l.slug]
           const tone = toneOf(l.theme)
+          const text = lessonText(l, lang)
           return (
             <li
               key={l.slug}
@@ -139,26 +142,26 @@ export function Lessons() {
               <div className="flex min-w-0 flex-1 flex-col gap-2 sm:p-5">
                 <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-muted">
                   <span aria-hidden="true" className="h-2.5 w-2.5 rounded-pill" style={{ background: tone }} />
-                  {l.theme}
+                  {tDyn(`lt.${l.theme}`, l.theme)}
                 </p>
-                <h2 className="text-lg font-semibold leading-tight">{l.title}</h2>
-                <p className="hidden text-muted sm:block">{l.summary}</p>
+                <h2 className="text-lg font-semibold leading-tight">{text.title}</h2>
+                <p className="hidden text-muted sm:block">{text.summary}</p>
                 <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
                   <span>
-                    {l.steps.length} steps · about {l.estMinutes} min
+                    {t('lessons.meta', { steps: l.steps.length, min: l.estMinutes })}
                   </span>
                   <span className="inline-flex items-center gap-2">
                     <Dots level={l.difficulty} />
-                    <span className="sr-only">difficulty {l.difficulty} of 5</span>
+                    <span className="sr-only">{t('lessons.difficulty', { n: l.difficulty })}</span>
                   </span>
                 </p>
                 {best ? (
-                  <p className="text-sm font-bold text-success" aria-label={`Your best: ${best.stars} of 3 stars, accuracy ${best.accuracy}`}>
-                    <span aria-hidden="true">Best accuracy {best.accuracy}</span>
+                  <p className="text-sm font-bold text-success" aria-label={t('lessons.bestAria', { stars: best.stars, acc: best.accuracy })}>
+                    <span aria-hidden="true">{t('lessons.bestAcc', { acc: best.accuracy })}</span>
                   </p>
                 ) : null}
                 <ButtonLink to={`/lesson/${l.slug}`} variant={best ? 'secondary' : 'primary'} className="mt-auto self-start sm:mt-2">
-                  {best ? 'Draw again' : 'Start'}
+                  {best ? t('lessons.again') : t('lessons.start')}
                 </ButtonLink>
               </div>
             </li>
