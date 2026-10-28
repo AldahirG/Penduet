@@ -28,8 +28,8 @@ export function ConnectionBanner({ kind, action, className }: ConnectionBannerPr
     <div
       role="status"
       className={cn(
-        'flex flex-wrap items-center gap-3 rounded-md px-4 py-3 text-sm font-medium',
-        terminal ? 'border border-danger bg-surface text-danger' : 'bg-warning-soft text-warning-text',
+        'rise flex flex-wrap items-center gap-3 rounded-lg px-4 py-3 text-sm font-semibold shadow-card',
+        terminal ? 'border border-danger bg-raised text-danger' : 'bg-warning-soft text-warning-text',
         className,
       )}
     >

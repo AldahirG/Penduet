@@ -2,6 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import { Check, Copy, Link2 } from 'lucide-react'
 import { Button } from './Button'
 
+const dabs = ['--color-paint-yellow', '--color-paint-pink', '--color-paint-green', '--color-accent', '--color-paint-red', '--color-paint-yellow']
+const tilt = ['-rotate-2', 'rotate-1', '-rotate-1', 'rotate-2', '-rotate-2', 'rotate-1']
+
 export interface RoomCodeDisplayProps {
   code: string
   /** Full invite link. When omitted the "Copy link" button is hidden. */
@@ -50,7 +53,11 @@ export function RoomCodeDisplay({ code, link }: RoomCodeDisplayProps) {
           <span
             key={`${i}-${ch}`}
             aria-hidden="true"
-            className="grid h-14 w-touch place-items-center rounded-md border border-line bg-surface font-mono text-code font-bold"
+            className={`pop-in grid h-14 w-touch place-items-center rounded-md border border-line font-mono text-code font-bold shadow-card ${tilt[i % tilt.length]}`}
+            style={{
+              ['--i' as string]: i,
+              background: `color-mix(in srgb, var(${dabs[i % dabs.length]}) 20%, var(--color-surface-raised))`,
+            }}
           >
             {ch}
           </span>

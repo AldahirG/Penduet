@@ -23,8 +23,8 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
       aria-pressed={pressed}
       className={cn(
         'inline-grid h-touch w-touch min-h-touch min-w-touch place-items-center rounded-md border border-transparent',
-        'transition duration-fast ease-out disabled:cursor-not-allowed disabled:opacity-45',
-        pressed ? 'bg-accent-soft text-accent-text' : variant === 'filled' ? 'bg-surface text-fg hover:bg-line' : 'text-fg hover:bg-surface',
+        'transition duration-fast ease-out active:scale-90 disabled:cursor-not-allowed disabled:opacity-45',
+        pressed ? 'bg-accent-soft text-accent-text shadow-card' : variant === 'filled' ? 'bg-surface text-fg hover:bg-line' : 'text-fg hover:bg-surface',
         className,
       )}
       {...rest}

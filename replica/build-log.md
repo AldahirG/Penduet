@@ -156,3 +156,8 @@ A new look, "atelier": warm paper, oil-paint colours, serif headlines and motion
 - Home: brush-underlined headline, drifting paint blobs, a tilted framed picture, icon tiles, a paint-yellow price band and an accordion FAQ.
 - Motion: entrance rise and pop, lift on hover, press scale, star pop, page fade. Transform and opacity only, and all of it stops under `prefers-reduced-motion`. Playwright runs with reduced motion on, so half-faded elements do not trip the axe contrast check.
 - Not done: `public/landing/*.png` still show the old blue look (retake them); the room page itself is only re-coloured, not re-laid-out; no real-device check of the bottom bar or the animations.
+
+## Atelier room + landing screenshots (2026-10-28)
+- S10/S11 room restyled: yellow-highlighted code in the title, paper player chips with a ringed seat dot, easel-style tool rail (raised, rounded-xl), pop-in colour/size panel, tilted pastel code tiles, canvas in a paper frame (ring only, so its size and the header height are unchanged), rising banners.
+- `public/landing/room-*.png` retaken from the real app with `scripts/capture-landing.mjs` (now uses reduced motion and clicks the swatch label).
+- Tests: typecheck clean, web vitest passed, Playwright 140/141; the one failure (coop-lesson C-E2, two simultaneous Next clicks) passed on rerun alone and in its file: timing flake.

@@ -24,9 +24,10 @@ const circle = (cx, cy, r, n = 40, from = 0, to = 360) =>
     return [cx + r * Math.cos(a), cy + r * Math.sin(a)]
   })
 
+// reducedMotion: the page scrolls smoothly and fades things in; for a still picture and for Playwright's scroll-into-view, switch both off.
 async function shoot(viewport, file, scheme = 'light') {
-  const ctxA = await browser.newContext({ baseURL: A, viewport, colorScheme: scheme, deviceScaleFactor: 2 })
-  const ctxB = await browser.newContext({ baseURL: B, viewport, colorScheme: scheme })
+  const ctxA = await browser.newContext({ baseURL: A, viewport, colorScheme: scheme, deviceScaleFactor: 2, reducedMotion: 'reduce' })
+  const ctxB = await browser.newContext({ baseURL: B, viewport, colorScheme: scheme, reducedMotion: 'reduce' })
   const a = await ctxA.newPage()
   const b = await ctxB.newPage()
   await a.goto('/together')
@@ -41,11 +42,11 @@ async function shoot(viewport, file, scheme = 'light') {
 
   // A draws a sun, B draws rays and a smile, in their own colours
   await a.getByRole('button', { name: 'Brush colour' }).click()
-  await a.getByRole('radio', { name: 'Orange' }).check({ force: true })
+  await a.getByRole('radiogroup', { name: 'Brush colour' }).getByTitle('Orange').click()
   await a.keyboard.press('Escape')
   await stroke(a, circle(500, 480, 190))
   await b.getByRole('button', { name: 'Brush colour' }).click()
-  await b.getByRole('radio', { name: 'Blue' }).check({ force: true })
+  await b.getByRole('radiogroup', { name: 'Brush colour' }).getByTitle('Blue').click()
   await b.keyboard.press('Escape')
   for (let i = 0; i < 8; i++) {
     const t = (i * Math.PI) / 4

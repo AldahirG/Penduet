@@ -141,7 +141,13 @@ function LiveRoom({ code }: { code: string }) {
           "here") must not make the row wrap or unwrap, because that moves the canvas under a stroke. */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 id="room-title" className="font-display text-xl font-bold">
-          Room {code}
+          Room{' '}
+          <span
+            className="rounded-md px-2 font-mono tracking-widest"
+            style={{ background: 'color-mix(in srgb, var(--color-paint-yellow) 35%, var(--color-surface-raised))' }}
+          >
+            {code}
+          </span>
         </h1>
         <div className="flex flex-wrap gap-2">
           {status !== 'ended' && status !== 'gone' && status !== 'full' ? (
@@ -185,7 +191,7 @@ function LiveRoom({ code }: { code: string }) {
       {status === 'gone' ? <ConnectionBanner kind="room-expired" /> : null}
 
       {status === 'ended' ? (
-        <div className="flex flex-col items-start gap-3 paper p-4">
+        <div className="rise flex flex-col items-start gap-3 paper p-4">
           <h2 className="font-display text-lg font-semibold">The room has closed</h2>
           <p className="text-muted">The host ended it. Your drawing is still below, so save it before you leave.</p>
           {me ? (
@@ -241,7 +247,7 @@ function LiveRoom({ code }: { code: string }) {
                   : undefined
               }
             />
-            <div className={`relative ${CANVAS_BOX_ROOM}`}>
+            <div className={`relative rounded-lg ring-4 ring-raised ${CANVAS_BOX_ROOM}`}>
               <DrawingCanvas
                 board={board}
                 authorId={me ?? 'pending'}

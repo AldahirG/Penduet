@@ -86,8 +86,8 @@ export function DrawingToolbar({
       aria-orientation={orientation}
       onKeyDown={onKeyDown}
       className={cn(
-        'relative inline-flex gap-1 rounded-lg border border-line bg-surface p-1',
-        vertical ? 'flex-col' : 'flex-row',
+        'relative inline-flex gap-1 rounded-xl border border-line bg-raised p-1 shadow-card',
+        vertical ? 'flex-col' : 'flex-row justify-around',
       )}
     >
       <IconButton label="Pen" icon={<Pencil />} pressed={tool === 'pen'} onClick={() => onToolChange('pen')} {...item(0)} />
@@ -116,8 +116,8 @@ export function DrawingToolbar({
       {panel ? (
         <div
           className={cn(
-            'absolute z-30 w-64 rounded-lg border border-line bg-raised p-3 shadow-pop',
-            vertical ? 'left-full top-0 ml-2' : 'bottom-full left-0 mb-2',
+            'pop-in absolute z-30 w-64 rounded-xl border border-line bg-raised p-3 shadow-pop',
+            vertical ? 'left-full top-0 ml-2 origin-top-left' : 'bottom-full left-0 mb-2 origin-bottom-left',
           )}
         >
           {panel === 'colour' ? (
