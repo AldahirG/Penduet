@@ -1,5 +1,7 @@
+import { useMemo } from 'react'
 import type { GuidePoint } from '@penduet/lessons'
 import { cn } from '../ui/cn'
+import { handLine } from './handDrawn'
 
 export interface GuideOverlayProps {
   guide: GuidePoint[][]
@@ -21,6 +23,8 @@ const HIT_AT = 0.8
  * The SVG shares the canvas's 1000 x 1000 space, so it lines up at any size.
  */
 export function GuideOverlay({ guide, tolerance, result, className }: GuideOverlayProps) {
+  // The guide is drawn the way a person would pencil it in: a little off, never off by more than the tolerance.
+  const paths = useMemo(() => guide.map((line, i) => handLine(line, { seed: `guide-${i}`, wobble: Math.min(3.5, tolerance / 4) })), [guide, tolerance])
   return (
     <svg
       viewBox="0 0 1000 1000"
@@ -29,19 +33,16 @@ export function GuideOverlay({ guide, tolerance, result, className }: GuideOverl
       className={cn('pointer-events-none absolute inset-0 h-full w-full', className)}
     >
       {guide.map((line, i) => {
-        const points = line.map(([x, y]) => `${x},${y}`).join(' ')
         const hit = result ? (result[i] ?? 0) >= HIT_AT : null
         return (
           <g key={i}>
-            {result ? null : (
-              <polyline points={points} fill="none" strokeWidth={tolerance * 2} strokeLinecap="round" strokeLinejoin="round" className="stroke-accent" opacity={0.12} />
-            )}
-            <polyline
-              points={points}
+            {result ? null : <path d={paths[i]} fill="none" strokeWidth={tolerance * 2} strokeLinecap="round" strokeLinejoin="round" className="stroke-accent" opacity={0.1} />}
+            <path
+              d={paths[i]}
               fill="none"
               vectorEffect="non-scaling-stroke"
-              strokeWidth={hit ? 4 : 3}
-              strokeDasharray={hit ? undefined : '8 8'}
+              strokeWidth={hit ? 4.5 : 3.5}
+              strokeDasharray={hit ? undefined : '2 9'}
               strokeLinecap="round"
               strokeLinejoin="round"
               className={hit === null ? 'stroke-guide' : hit ? 'stroke-success' : 'stroke-danger'}

@@ -164,11 +164,11 @@ test.describe('F01 first lesson, F03 browse and draw a lesson (S05 S06 S07)', ()
     }
     // the last step has three lines: trace only the first
     const guide = lesson.steps[stripes]!.guide
-    await expect(page.locator('svg polyline.stroke-guide')).toHaveCount(guide.length)
+    await expect(page.locator('svg path.stroke-guide')).toHaveCount(guide.length)
     await drawPath(page, along(guide[0] as [number, number][]))
     await page.getByRole('button', { name: 'Check my drawing' }).click()
-    await expect(page.locator('svg polyline.stroke-success')).toHaveCount(1)
-    await expect(page.locator('svg polyline.stroke-danger')).toHaveCount(guide.length - 1)
+    await expect(page.locator('svg path.stroke-success')).toHaveCount(1)
+    await expect(page.locator('svg path.stroke-danger')).toHaveCount(guide.length - 1)
     await expect(page.getByText(/Part of the guide is still empty/)).toBeVisible()
   })
 

@@ -6,4 +6,4 @@
 export const CANVAS_BOX = 'w-full max-w-canvas lg:max-w-[min(var(--layout-canvas-max),calc(100dvh_-_10rem))]'
 
 /** The same for a room, whose title row (name, two player chips, four buttons) is taller than the other pages'. */
-export const CANVAS_BOX_ROOM = 'w-full max-w-canvas lg:max-w-[min(var(--layout-canvas-max),calc(100dvh_-_13rem))]'
+export const CANVAS_BOX_ROOM = 'w-full max-w-canvas lg:max-w-[min(var(--layout-canvas-max),calc(100dvh_-_16.5rem))]'

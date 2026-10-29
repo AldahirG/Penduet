@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Download, LogOut, UserPlus } from 'lucide-react'
 import { roomCodeSchema } from '@penduet/protocol'
+import { FreeTable } from '../components/FreeTable'
 import { Stub } from '../components/Stub'
 import { lessonText } from '@penduet/lessons'
 import { useT } from '../i18n'
@@ -150,16 +151,21 @@ function LiveRoom({ code }: { code: string }) {
     <section aria-labelledby="room-title" className="flex flex-col gap-4">
       {/* Two fixed rows: the title and buttons, then the people. A chip changing width ("not here yet" to
           "here") must not make the row wrap or unwrap, because that moves the canvas under a stroke. */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 id="room-title" className="font-display text-xl font-bold">
-          {t('room.title')}{' '}
-          <span
-            className="rounded-md px-2 font-mono tracking-widest"
-            style={{ background: 'color-mix(in srgb, var(--color-paint-yellow) 35%, var(--color-surface-raised))' }}
-          >
-            {code}
-          </span>
-        </h1>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="flex flex-col">
+          <p aria-hidden="true" className="text-xs font-bold uppercase tracking-widest text-muted">
+            {t('room.eyebrow')}
+          </p>
+          <h1 id="room-title" className="font-display text-xl font-bold sm:text-display">
+            {t('room.title')}{' '}
+            <span
+              className="-rotate-2 inline-block rounded-md px-2 font-mono tracking-widest shadow-card"
+              style={{ background: 'color-mix(in srgb, var(--color-paint-yellow) 38%, var(--color-surface-raised))' }}
+            >
+              {code}
+            </span>
+          </h1>
+        </div>
         <div className="flex flex-wrap gap-2">
           {status !== 'ended' && status !== 'gone' && status !== 'full' ? (
             <Button
@@ -225,17 +231,22 @@ function LiveRoom({ code }: { code: string }) {
         // so notices and results appearing never move it. A moving canvas bends the stroke being drawn.
         <div className="grid gap-4 lg:grid-cols-[auto_20rem] lg:items-start">
           {rl && status !== 'connecting' ? (
-            <div className="lg:col-start-2 lg:row-start-1">
+            <div className="lg:col-start-2 lg:row-start-1 paper p-4">
               <RoomLessonPanel c={rl} state={state} />
             </div>
           ) : null}
+          {!rl && !game && status !== 'connecting' ? (
+            <div className="hidden lg:col-start-2 lg:row-start-1 lg:block">
+              <FreeTable together={!waiting} />
+            </div>
+          ) : null}
           {game && game.kind !== 'guess' && status !== 'connecting' ? (
-            <div className="lg:col-start-2 lg:row-start-1">
+            <div className="lg:col-start-2 lg:row-start-1 paper p-4">
               <GamePanel g={game} />
             </div>
           ) : null}
 
-          <div className="flex flex-col-reverse gap-3 md:flex-row md:items-start lg:col-start-1 lg:row-span-3 lg:row-start-1">
+          <div className="easel flex flex-col-reverse gap-3 p-3 sm:p-5 md:flex-row md:items-start lg:col-start-1 lg:row-span-3 lg:row-start-1">
             <DrawingToolbar
               orientation={wide ? 'vertical' : 'horizontal'}
               tool={tool}
@@ -258,7 +269,7 @@ function LiveRoom({ code }: { code: string }) {
                   : undefined
               }
             />
-            <div className={`relative rounded-lg ring-4 ring-raised ${CANVAS_BOX_ROOM} ${game?.kind === 'guess' && stageIsOpen(game.phase) ? 'z-[55]' : ''}`}>
+            <div className={`sheet relative rounded-md ring-4 ring-raised ${CANVAS_BOX_ROOM} ${game?.kind === 'guess' && stageIsOpen(game.phase) ? 'z-[55]' : ''}`}>
               <DrawingCanvas
                 board={board}
                 authorId={me ?? 'pending'}
@@ -312,10 +323,10 @@ function LiveRoom({ code }: { code: string }) {
             {rl && rl.phase === 'draw' && status === 'live' ? (
               <div className="flex flex-wrap gap-2">
                 <Button onClick={rl.check} disabled={rl.stepStrokes.length === 0}>
-                  Check our drawing
+                  {t('room.check')}
                 </Button>
                 <Button variant="ghost" onClick={rl.skip}>
-                  Skip step
+                  {t('room.skip')}
                 </Button>
               </div>
             ) : null}

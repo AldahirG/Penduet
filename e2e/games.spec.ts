@@ -193,7 +193,7 @@ test.describe('Two halves', () => {
     const { a, b } = await pair(players, 'Two halves of one picture')
     const first = await title(a)
     const subject = halfSubjects.find((s) => s.title === first)!
-    await expect(a.page.locator('svg polyline.stroke-guide')).toHaveCount(halfGuide(subject).length)
+    await expect(a.page.locator('svg path.stroke-guide')).toHaveCount(halfGuide(subject).length)
     await across(a, 450, 100, 300)
     await expect.poll(() => ink(b.page)).toBeGreaterThan(100)
 

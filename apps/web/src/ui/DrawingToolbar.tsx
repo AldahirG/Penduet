@@ -88,13 +88,15 @@ export function DrawingToolbar({
       aria-orientation={orientation}
       onKeyDown={onKeyDown}
       className={cn(
-        'relative inline-flex gap-1 rounded-xl border border-line bg-raised p-1 shadow-card',
+        'relative inline-flex items-center gap-1 rounded-2xl border border-line bg-raised p-1.5 shadow-lift',
         vertical ? 'flex-col' : 'flex-row justify-around',
       )}
     >
       <IconButton label={t('tool.pen')} icon={<Pencil />} pressed={tool === 'pen'} onClick={() => onToolChange('pen')} {...item(0)} />
       <IconButton label={t('tool.eraser')} icon={<Eraser />} pressed={tool === 'eraser'} onClick={() => onToolChange('eraser')} {...item(1)} />
+      <span aria-hidden="true" className={cn('bg-line', vertical ? 'my-0.5 h-px w-6' : 'mx-0.5 h-6 w-px')} />
       <IconButton label={t('tool.undo')} icon={<Undo2 />} disabled={!canUndo} onClick={onUndo} {...item(2)} />
+      <span aria-hidden="true" className={cn('bg-line', vertical ? 'my-0.5 h-px w-6' : 'mx-0.5 h-6 w-px')} />
       <IconButton
         label={t('tool.colour')}
         data-panel="colour"
@@ -113,6 +115,7 @@ export function DrawingToolbar({
         onClick={() => toggle('size')}
         {...item(4)}
       />
+      <span aria-hidden="true" className={cn('bg-line', vertical ? 'my-0.5 h-px w-6' : 'mx-0.5 h-6 w-px')} />
       <IconButton label={clearCopy?.label ?? t('tool.clear')} icon={<Trash2 />} onClick={() => setConfirmClear(true)} {...item(5)} />
 
       {panel ? (

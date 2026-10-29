@@ -56,6 +56,56 @@
     backdrop-filter: blur(10px);
   }
 
+  /* The table a drawing is made on: a cutting mat, with a faint grid of dots to rest the eye on. */
+  .easel {
+    @apply rounded-2xl border border-line;
+    background-color: color-mix(in srgb, var(--color-surface) 72%, var(--color-bg));
+    background-image: radial-gradient(color-mix(in srgb, var(--color-fg) 16%, transparent) 1px, transparent 1.5px);
+    background-size: 22px 22px;
+    box-shadow: inset 0 2px 12px color-mix(in srgb, var(--color-fg) 7%, transparent);
+  }
+  /* A sheet of paper held to the table with two strips of tape. The tape catches no pointer events. */
+  .sheet {
+    box-shadow:
+      0 1px 1px rgba(43, 33, 24, 0.1),
+      0 6px 16px rgba(43, 33, 24, 0.16),
+      0 22px 40px rgba(43, 33, 24, 0.16);
+  }
+  .sheet::before,
+  .sheet::after {
+    content: '';
+    position: absolute;
+    top: -3px;
+    z-index: 3;
+    width: 58px;
+    height: 18px;
+    border-radius: 2px;
+    pointer-events: none;
+    background: color-mix(in srgb, var(--color-paint-yellow) 62%, transparent);
+    box-shadow: 0 1px 2px rgba(43, 33, 24, 0.18);
+  }
+  .sheet::before {
+    left: -22px;
+    transform: rotate(-38deg);
+  }
+  .sheet::after {
+    right: -22px;
+    transform: rotate(38deg);
+  }
+  @media (max-width: 639px) {
+    .sheet::before,
+    .sheet::after {
+      width: 44px;
+      height: 15px;
+    }
+    .sheet::before {
+      left: -12px;
+    }
+    .sheet::after {
+      right: -12px;
+    }
+  }
+
   /* Hand-painted underline under a few words in a headline. */
   .brush-underline {
     position: relative;
@@ -218,14 +268,19 @@
   animation: draw 1.1s var(--motion-ease) forwards;
   animation-delay: calc(var(--i, 0) * 120ms + 150ms);
 }
-.sketch-hover .draw-line-hover {
-  stroke-dasharray: 1;
-  stroke-dashoffset: 0;
+/* The same, for a pencil drawing made of filled strokes: the pencil goes over it left to right. */
+@keyframes ink {
+  from {
+    clip-path: inset(0 100% 0 0) fill-box;
+  }
+  to {
+    clip-path: inset(0 0 0 0) fill-box;
+  }
 }
 @media (hover: hover) {
-  .sketch-hover:hover .draw-line-hover {
-    animation: draw 0.9s var(--motion-ease) both;
-    animation-delay: calc(var(--i, 0) * 110ms);
+  .sketch-hover:hover .ink-line {
+    animation: ink 0.7s var(--motion-ease) both;
+    animation-delay: calc(var(--i, 0) * 70ms);
   }
 }
 

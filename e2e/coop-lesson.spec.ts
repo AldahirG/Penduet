@@ -22,7 +22,7 @@ test.describe('F05b co-op lesson in a room (S11 lesson mode)', () => {
     for (const p of [a, b]) {
       await expect(p.page.getByText(`${TITLE}, together`)).toBeVisible()
       await expect(p.page.getByText(lesson.steps[0]!.prompt)).toBeVisible()
-      await expect(p.page.locator('svg polyline.stroke-guide')).toHaveCount(lesson.steps[0]!.guide.length)
+      await expect(p.page.locator('svg path.stroke-guide')).toHaveCount(lesson.steps[0]!.guide.length)
     }
     // A draws the guide; B sees it
     await traceStep(a.page, SLUG, 0)
@@ -33,7 +33,7 @@ test.describe('F05b co-op lesson in a room (S11 lesson mode)', () => {
     for (const p of [a, b]) {
       await expect(p.page.getByRole('heading', { name: `Step 1 of ${stepsOf(SLUG)}` })).toBeVisible()
       await expect(p.page.getByLabel('3 of 3 stars')).toBeVisible()
-      await expect(p.page.locator('svg polyline.stroke-success')).toHaveCount(1)
+      await expect(p.page.locator('svg path.stroke-success')).toHaveCount(1)
     }
     // during the result nobody can add strokes
     const frozen = await ink(a.page)
@@ -87,7 +87,7 @@ test.describe('F05b co-op lesson in a room (S11 lesson mode)', () => {
     await a.page.reload()
     await expect(a.page.getByRole('heading', { name: `Step 1 of ${stepsOf(SLUG)}` })).toBeVisible()
     await expect(a.page.getByLabel('3 of 3 stars')).toBeVisible()
-    await expect(a.page.locator('svg polyline.stroke-success')).toHaveCount(1) // the marks came back too
+    await expect(a.page.locator('svg path.stroke-success')).toHaveCount(1) // the marks came back too
   })
 
   test('C-E4 finishing every step ends on a summary for both, and both keep the result', async ({ players }) => {

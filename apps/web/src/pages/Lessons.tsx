@@ -2,6 +2,7 @@ import { useMemo, useState, type CSSProperties } from 'react'
 import { Star } from 'lucide-react'
 import { lessonText, lessons, type Lesson } from '@penduet/lessons'
 import { getProgress } from '../data/progress'
+import { HandSketch } from '../drawing/HandSketch'
 import { tDyn, useT } from '../i18n'
 import { ButtonLink, cn } from '../ui'
 import { usePageTitle } from '../usePageTitle'
@@ -20,30 +21,13 @@ const toneOf = (theme: string) => `var(${tones[theme] ?? '--color-accent'})`
 
 const themes = [...new Set(lessons.map((l) => l.theme))]
 
-/** The whole lesson as a small painted picture: every step's guide, step by step in different colours. */
+/** The whole lesson as a small pencil drawing: every step's guide, step by step in different colours. */
 function Sketch({ lesson, tone }: { lesson: Lesson; tone: string }) {
-  const inks = ['var(--color-ink)', tone, 'var(--color-player-1)', 'var(--color-player-2)']
-  let n = 0
-  return (
-    <svg viewBox="0 0 1000 1000" aria-hidden="true" focusable="false" className="h-full w-full">
-      {lesson.steps.map((step, si) =>
-        step.guide.map((line, li) => (
-          <path
-            key={`${si}-${li}`}
-            d={line.map(([x, y], i) => `${i === 0 ? 'M' : 'L'}${x} ${y}`).join(' ')}
-            pathLength={1}
-            fill="none"
-            stroke={inks[si % inks.length]}
-            strokeWidth={26}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="draw-line-hover"
-            style={{ ['--i' as string]: n++ } as CSSProperties}
-          />
-        )),
-      )}
-    </svg>
-  )
+  const lines = useMemo(() => {
+    const inks = ['var(--color-ink)', tone, 'var(--color-player-1)', 'var(--color-player-2)']
+    return lesson.steps.flatMap((step, si) => step.guide.map((points) => ({ points, colour: inks[si % inks.length]! })))
+  }, [lesson, tone])
+  return <HandSketch lines={lines} seed={lesson.slug} />
 }
 
 function Dots({ level }: { level: number }) {
