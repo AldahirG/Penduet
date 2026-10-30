@@ -13,3 +13,6 @@ e2e-report/
 e2e-results/
 playwright-report/
 test-results/
+
+# Convenience copy of every migration in one file, for pasting into the Supabase SQL editor
+supabase/apply-all.sql
