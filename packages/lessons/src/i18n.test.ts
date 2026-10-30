@@ -5,7 +5,8 @@ describe('Spanish content', () => {
   it('has a title, a summary and one prompt per step for every lesson', () => {
     for (const l of lessons) {
       const es = lessonText(l, 'es')
-      expect(es.title, l.slug).not.toBe(l.title)
+      expect(es.title.length, l.slug).toBeGreaterThan(2) // a title may match the English one (Mandala, Cupcake)
+      expect(es.summary, l.slug).not.toBe(l.summary)
       expect(es.summary.length, l.slug).toBeGreaterThan(10)
       expect(es.steps, l.slug).toHaveLength(l.steps.length)
       for (const p of es.steps) expect(p.length).toBeGreaterThan(5)

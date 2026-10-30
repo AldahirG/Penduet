@@ -1,10 +1,14 @@
 import type { GuidePoint } from './score'
 import { arc, circle, curve, ellipse, leaf, line, loops, polygon, rect, spiral, wave } from './shapes'
+import { gallery } from './gallery'
 
 // Starter lessons, written for this project. A guide is a list of polylines in the 1000 x 1000 canvas,
 // one per stroke the learner should draw. Tolerance (in the same units) is how far a line may stray.
 
 export type LessonStage = 'lines' | 'shapes' | 'details' | 'colour'
+
+export type LessonLevel = 'beginner' | 'intermediate' | 'expert'
+export const lessonLevels: readonly LessonLevel[] = ['beginner', 'intermediate', 'expert']
 
 export interface LessonStep {
   stage: LessonStage
@@ -22,7 +26,9 @@ export interface Lesson {
   /** What the lesson is about, shown on its card: Warm-up, Shapes, Nature, Animals, Objects, Faces, Scenes. */
   theme: string
   summary: string
-  /** 1 (easiest) to 5. */
+  /** Where it sits in the ladder: simple big shapes, more parts, or a detailed picture. */
+  level: LessonLevel
+  /** 1 (easiest) to 5. Beginner is 1 to 2, intermediate 3, expert 4 to 5. */
   difficulty: number
   estMinutes: number
   steps: LessonStep[]
@@ -30,13 +36,14 @@ export interface Lesson {
 
 // ---- lessons ------------------------------------------------------------------
 
-export const lessons: Lesson[] = [
+const basics: Lesson[] = [
   {
     slug: 'straight-lines',
     title: 'Straight lines',
     theme: 'Warm-up',
     summary: 'Warm up your hand: flat, upright and slanted lines, drawn in one calm movement.',
     difficulty: 1,
+    level: 'beginner',
     estMinutes: 4,
     steps: [
       { stage: 'lines', prompt: 'Draw a straight line from left to right along the dashed guide.', guide: [line(150, 500, 850, 500)], tolerance: 32 },
@@ -56,6 +63,7 @@ export const lessons: Lesson[] = [
     theme: 'Shapes',
     summary: 'Circle, square and triangle, then put them together into a small house.',
     difficulty: 1,
+    level: 'beginner',
     estMinutes: 6,
     steps: [
       { stage: 'shapes', prompt: 'Trace the circle in one go. Close it where you started.', guide: [circle(500, 500, 250)], tolerance: 36 },
@@ -80,6 +88,7 @@ export const lessons: Lesson[] = [
     theme: 'Nature',
     summary: 'A round sun with rays and a face. Small details need a steady, slow hand.',
     difficulty: 2,
+    level: 'beginner',
     estMinutes: 6,
     steps: [
       { stage: 'shapes', prompt: 'Draw the sun: one round circle.', guide: [circle(500, 500, 160)], tolerance: 30 },
@@ -109,6 +118,7 @@ export const lessons: Lesson[] = [
     theme: 'Animals',
     summary: 'A round cat face with pointy ears, big eyes, a little nose and whiskers.',
     difficulty: 2,
+    level: 'beginner',
     estMinutes: 7,
     steps: [
       { stage: 'shapes', prompt: "Draw the cat's head: one big round circle.", guide: [circle(500, 540, 230)], tolerance: 36 },
@@ -153,6 +163,7 @@ export const lessons: Lesson[] = [
     theme: 'Animals',
     summary: 'A fish with a tail, an eye, a fin, scales and a few bubbles.',
     difficulty: 2,
+    level: 'beginner',
     estMinutes: 7,
     steps: [
       { stage: 'shapes', prompt: 'Draw the body: a wide oval, closed where you started.', guide: [ellipse(450, 500, 260, 150)], tolerance: 36 },
@@ -190,6 +201,7 @@ export const lessons: Lesson[] = [
     theme: 'Nature',
     summary: 'A five-petal flower on a curved stem, with two leaves.',
     difficulty: 2,
+    level: 'beginner',
     estMinutes: 6,
     steps: [
       { stage: 'shapes', prompt: 'Start in the middle of the flower with a small circle.', guide: [circle(500, 380, 58)], tolerance: 26 },
@@ -218,6 +230,7 @@ export const lessons: Lesson[] = [
     theme: 'Nature',
     summary: 'A round tree with a trunk, branches, the ground and two birds.',
     difficulty: 2,
+    level: 'beginner',
     estMinutes: 6,
     steps: [
       { stage: 'shapes', prompt: 'Draw the leafy top: a big round circle.', guide: [circle(500, 360, 200)], tolerance: 36 },
@@ -243,6 +256,7 @@ export const lessons: Lesson[] = [
     theme: 'Objects',
     summary: 'A boat with two sails and a flag, rocking on the waves.',
     difficulty: 3,
+    level: 'intermediate',
     estMinutes: 8,
     steps: [
       { stage: 'shapes', prompt: 'Draw the hull: it is wide at the top and narrower at the bottom.', guide: [polygon([[200, 600], [800, 600], [680, 780], [320, 780]])], tolerance: 28 },
@@ -267,6 +281,7 @@ export const lessons: Lesson[] = [
     theme: 'Faces',
     summary: 'A whole face: head, eyes, eyebrows, nose, smile and ears.',
     difficulty: 3,
+    level: 'intermediate',
     estMinutes: 8,
     steps: [
       { stage: 'shapes', prompt: 'Draw the head: a tall oval, a little longer than it is wide.', guide: [ellipse(500, 500, 250, 310)], tolerance: 38 },
@@ -302,6 +317,7 @@ export const lessons: Lesson[] = [
     theme: 'Warm-up',
     summary: 'Waves, scallops, loops and a spiral. Curves are the next step after straight lines.',
     difficulty: 2,
+    level: 'beginner',
     estMinutes: 6,
     steps: [
       {
@@ -330,6 +346,7 @@ export const lessons: Lesson[] = [
     theme: 'Scenes',
     summary: 'A crescent moon, a ringed planet, shooting stars and the hills below.',
     difficulty: 3,
+    level: 'intermediate',
     estMinutes: 7,
     steps: [
       {
@@ -355,3 +372,8 @@ export const lessons: Lesson[] = [
     ],
   },
 ]
+
+const byLevel = (l: Lesson) => lessonLevels.indexOf(l.level)
+
+/** Every lesson, easiest rung first. Within a rung the order is the order they were written in. */
+export const lessons: Lesson[] = [...basics, ...gallery].sort((a, b) => byLevel(a) - byLevel(b))

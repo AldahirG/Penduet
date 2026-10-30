@@ -151,8 +151,8 @@ function LessonRun({ lesson }: { lesson: LessonData }) {
             <dd className="font-semibold">{t('lesson.timeAbout', { n: lesson.estMinutes })}</dd>
           </div>
           <div>
-            <dt className="text-muted">{t('lesson.difficulty')}</dt>
-            <dd className="font-semibold">{t('lesson.difficultyOf', { n: lesson.difficulty })}</dd>
+            <dt className="text-muted">{t('lesson.level')}</dt>
+            <dd className="font-semibold">{t(`level.${lesson.level}` as const)}</dd>
           </div>
         </dl>
         {previous ? (

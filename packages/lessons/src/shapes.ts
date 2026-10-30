@@ -56,6 +56,35 @@ export const loops = (x0: number, y: number, pitch: number, size: number, cycles
   })
 
 
+/**
+ * A smooth line through the given points (Catmull-Rom), so an organic outline needs a handful of points, not a hundred.
+ * `closed` joins the last point back to the first without a corner.
+ */
+export const spline = (pts: GuidePoint[], closed = false, per = 10): GuidePoint[] => {
+  const n = pts.length
+  const at = (i: number) => (closed ? pts[((i % n) + n) % n]! : pts[Math.min(n - 1, Math.max(0, i))]!)
+  const out: GuidePoint[] = []
+  const segments = closed ? n : n - 1
+  for (let i = 0; i < segments; i++) {
+    const p0 = at(i - 1)
+    const p1 = at(i)
+    const p2 = at(i + 1)
+    const p3 = at(i + 2)
+    for (let k = 0; k < per; k++) {
+      const t = k / per
+      const t2 = t * t
+      const t3 = t2 * t
+      const f = (a: number, b: number, c: number, d: number) => 0.5 * (2 * b + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t2 + (-a + 3 * b - 3 * c + d) * t3)
+      out.push([Math.round(f(p0[0], p1[0], p2[0], p3[0])), Math.round(f(p0[1], p1[1], p2[1], p3[1]))])
+    }
+  }
+  out.push(closed ? out[0]! : pts[n - 1]!)
+  return out
+}
+
+/** The same lines moved by (dx, dy). */
+export const shift = (lines: GuidePoint[][], dx: number, dy: number): GuidePoint[][] => lines.map((l) => l.map(([x, y]) => [x + dx, y + dy] as GuidePoint))
+
 /** The left half of an ellipse, from its top, round the left side, to its bottom. Joins the centre line at both ends. */
 export const halfEllipseLeft = (cx: number, cy: number, rx: number, ry: number, n = 32): GuidePoint[] =>
   Array.from({ length: n + 1 }, (_, i) => {

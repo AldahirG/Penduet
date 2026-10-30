@@ -36,6 +36,28 @@ describe('lessons list', () => {
     expect(screen.getByRole('heading', { name: 'Straight lines' })).toBeInTheDocument()
   })
 
+  it('groups the lessons into three levels and can show just one', () => {
+    renderAt('/lessons')
+    for (const name of ['Beginner', 'Intermediate', 'Expert']) expect(screen.getByRole('heading', { level: 2, name })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /^Expert/ }))
+    const expert = lessons.filter((l) => l.level === 'expert')
+    expect(screen.getAllByRole('link', { name: /start/i })).toHaveLength(expert.length)
+    expect(screen.queryByRole('heading', { level: 2, name: 'Beginner' })).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Tall ship' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Straight lines' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /^All levels/ }))
+    expect(screen.getAllByRole('link', { name: /start/i })).toHaveLength(lessons.length)
+  })
+
+  it('can combine a level with a theme, and says so when nothing matches', () => {
+    renderAt('/lessons')
+    fireEvent.click(screen.getByRole('button', { name: /^Beginner/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Scenes' }))
+    expect(screen.getByText('No drawings match these filters yet.')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /^Expert/ }))
+    expect(screen.getByRole('heading', { name: 'Stone castle' })).toBeInTheDocument()
+  })
+
   it('shows the best result stored on this device', () => {
     window.localStorage.setItem('penduet.progress.v1', JSON.stringify({ 'straight-lines': { stars: 2, accuracy: 88, at: '2026-10-27T10:00:00Z' } }))
     renderAt('/lessons')

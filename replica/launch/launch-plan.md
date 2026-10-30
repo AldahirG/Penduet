@@ -54,7 +54,7 @@ What the research supports, and what it does not:
 
 **Show HN or Product Hunt**, whichever you will answer comments on for a day. Lead with the fix, not the feature list.
 
-> Penduet: draw on one canvas with a friend. You open a room, send a six-character code, and you see each other's lines live. Every person in a room is a real person who got the code: no bots, no ads, no energy meter. Web app, no account. It is early: two-person rooms, eleven lessons, three games for two (two halves of one picture, a shared topic, and pass the pen), nothing paid.
+> Penduet: draw on one canvas with a friend. You open a room, send a six-character code, and you see each other's lines live. Every person in a room is a real person who got the code: no bots, no ads, no energy meter. Web app, no account. It is early: two-person rooms, twenty-seven lessons on three levels, three games for two (two halves of one picture, a shared topic, and pass the pen), nothing paid.
 
 Be ready for: "how is this different from PairDrawing" (a real, existing app in the same niche: the answer is lessons you do together, no ads, and the web; check the claim against the app before posting), "is it open source" (no: the code is private and all rights are reserved; the service is free for personal use, see `legal-notes.md`), "how do you make money" (answer from `pricing.md`, honestly: it does not yet).
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { findLesson, halfGuide, halfSubjects, lessons, mirror, resample, scoreStep, strokeSmoothness, closeness, type GuidePoint } from './index'
+import { findLesson, halfGuide, halfSubjects, lessonLevels, lessons, mirror, resample, scoreStep, strokeSmoothness, closeness, type GuidePoint } from './index'
 
 // Deterministic noise, so a threshold test never flakes.
 function rng(seed: number) {
@@ -23,7 +23,7 @@ const wobble = (pts: number[][], amplitude: number) =>
 
 describe('lesson content', () => {
   it('has unique, valid slugs and every lesson has a theme', () => {
-    expect(lessons.length).toBeGreaterThanOrEqual(11)
+    expect(lessons.length).toBeGreaterThanOrEqual(27)
     expect(new Set(lessons.map((l) => l.slug)).size).toBe(lessons.length)
     for (const l of lessons) {
       expect(l.slug).toMatch(/^[a-z0-9-]{1,64}$/)
@@ -32,6 +32,29 @@ describe('lesson content', () => {
     expect(new Set(lessons.map((l) => l.theme)).size).toBeGreaterThanOrEqual(5)
     expect(findLesson('straight-lines')?.title).toBe('Straight lines')
     expect(findLesson('nope')).toBeUndefined()
+  })
+
+  it('has pictures on every rung, easiest first, and each rung is as hard as it says', () => {
+    for (const level of lessonLevels) expect(lessons.filter((l) => l.level === level).length, level).toBeGreaterThanOrEqual(4)
+    const order = lessons.map((l) => lessonLevels.indexOf(l.level))
+    expect(order).toEqual([...order].sort((a, b) => a - b))
+    for (const l of lessons) {
+      if (l.level === 'beginner') expect(l.difficulty, l.slug).toBeLessThanOrEqual(2)
+      if (l.level === 'intermediate') expect(l.difficulty, l.slug).toBe(3)
+      if (l.level === 'expert') expect(l.difficulty, l.slug).toBeGreaterThanOrEqual(4)
+    }
+  })
+
+  it('gets more detailed with every rung: more steps and more lines to draw', () => {
+    const avg = (level: string, f: (l: (typeof lessons)[number]) => number) => {
+      const of = lessons.filter((l) => l.level === level)
+      return of.reduce((n, l) => n + f(l), 0) / of.length
+    }
+    const lines = (l: (typeof lessons)[number]) => l.steps.reduce((n, s) => n + s.guide.length, 0)
+    expect(avg('intermediate', (l) => l.steps.length)).toBeGreaterThan(avg('beginner', (l) => l.steps.length))
+    expect(avg('expert', (l) => l.steps.length)).toBeGreaterThan(avg('intermediate', (l) => l.steps.length))
+    expect(avg('intermediate', lines)).toBeGreaterThan(avg('beginner', lines))
+    expect(avg('expert', lines)).toBeGreaterThan(avg('intermediate', lines))
   })
 
   it.each(lessons.map((l) => [l.slug, l] as const))('%s: every step is well formed and inside the canvas', (_slug, lesson) => {
