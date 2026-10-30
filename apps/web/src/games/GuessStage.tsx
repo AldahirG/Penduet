@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type FormEvent } from 'react'
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from 'react'
 import { Clock, Hourglass, Pencil, Send, Sparkles, Star, Trophy } from 'lucide-react'
 import { wordIn } from '@penduet/lessons'
 import { useT } from '../i18n'
@@ -40,8 +40,51 @@ function Ring({ remaining, total, size = 72 }: { remaining: number; total: numbe
   )
 }
 
-/** Where the window sits: under the app bar on a phone (above the canvas), and beside the canvas on a laptop. */
-const place = 'pointer-events-none fixed inset-x-3 top-[3.75rem] z-[60] mx-auto max-w-md lg:inset-x-auto lg:right-6 lg:top-1/2 lg:-translate-y-1/2 lg:mx-0 lg:w-[24rem]'
+/**
+ * Where the window sits: under the app bar on a phone (above the canvas), and beside the canvas on a laptop, where the two are
+ * centred on the screen as a pair (useCentredPair sets --stage-left and --stage-top; the fallback is the right edge).
+ */
+const place =
+  'pointer-events-none fixed inset-x-3 top-[3.75rem] z-[60] mx-auto max-w-md lg:inset-x-auto lg:left-[var(--stage-left,calc(100vw_-_25.5rem))] lg:top-[var(--stage-top,50%)] lg:-translate-y-1/2 lg:mx-0 lg:w-[24rem]'
+
+const CARD_REM = 24
+const PAIR_GAP = 24
+
+/**
+ * On a laptop, while a window is open the board slides sideways until the board and the window, side by side, are centred on the
+ * screen. The board itself is moved with a transform (--stage-dx), so nothing else on the page changes size.
+ */
+function useCentredPair(open: boolean) {
+  useLayoutEffect(() => {
+    if (!open) return
+    const root = document.documentElement
+    const board = document.querySelector<HTMLElement>('[data-stage-board]')
+    const laptop = window.matchMedia?.('(min-width: 1024px)')
+    const names = ['--stage-dx', '--stage-left', '--stage-top']
+    const clear = () => names.forEach((n) => root.style.removeProperty(n))
+    const centre = () => {
+      if (!board || !laptop?.matches) return clear()
+      const rem = parseFloat(getComputedStyle(root).fontSize) || 16
+      const card = CARD_REM * rem
+      // Where the board is now includes however far it has already slid, so take that off to find where the page puts it.
+      const shifted = new DOMMatrixReadOnly(getComputedStyle(board).transform).m41
+      const r = board.getBoundingClientRect()
+      const width = root.clientWidth
+      const target = Math.max(8, (width - (r.width + PAIR_GAP + card)) / 2)
+      root.style.setProperty('--stage-dx', `${Math.round(target - (r.left - shifted))}px`)
+      root.style.setProperty('--stage-left', `${Math.round(Math.min(target + r.width + PAIR_GAP, width - card - 8))}px`)
+      root.style.setProperty('--stage-top', `${Math.round(r.top + r.height / 2)}px`)
+    }
+    centre()
+    window.addEventListener('resize', centre)
+    window.addEventListener('scroll', centre, { passive: true })
+    return () => {
+      window.removeEventListener('resize', centre)
+      window.removeEventListener('scroll', centre)
+      clear()
+    }
+  }, [open])
+}
 
 function AnswerStage({ g }: { g: G }) {
   const { t } = useT()
@@ -334,6 +377,7 @@ function RevealWord({ g, won, word }: { g: G; won: boolean; word: string }) {
 /** The glass behind the windows, and the windows: the answer (or the wait for it) and the end of a round. */
 export function GuessStage({ g }: { g: G }) {
   const open = stageIsOpen(g.phase)
+  useCentredPair(open)
 
   // The first sound after a click lets the browser start audio; and on a phone the window sits above the canvas, so be at the top.
   useEffect(() => {

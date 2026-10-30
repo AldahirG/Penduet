@@ -481,6 +481,18 @@
 .stage-card {
   animation: stage-in 460ms var(--motion-ease) both;
 }
+/* While a window is open on a laptop, the board and the window are centred on the screen as one pair (see GuessStage). */
+@media (min-width: 1024px) {
+  .stage-board {
+    transform: translateX(var(--stage-dx, 0px));
+    transition: transform 420ms var(--motion-ease);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .stage-board {
+    transition: none;
+  }
+}
 .shake {
   animation: shake 650ms ease-in-out both;
 }

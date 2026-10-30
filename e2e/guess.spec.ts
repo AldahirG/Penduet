@@ -56,6 +56,34 @@ test.describe('Draw and guess', () => {
     await expect(guesser.page.getByRole('heading', { name: /Round 1: .* draws/ })).toBeVisible()
   })
 
+  test('GD-E8 on a laptop the drawing and the answer window are centred on the screen as a pair', async ({ players }, testInfo) => {
+    test.skip(testInfo.project.name !== 'desktop', 'the window sits beside the canvas only from 1024px wide')
+    const { drawer, guesser } = await round(players)
+    await waitPhase(drawer, 'draw')
+    await stroke(drawer, 300)
+    await waitPhase(guesser, 'answer')
+    const modal = guesser.page.getByTestId('guess-modal')
+    await expect(modal).toBeVisible()
+    const gaps = async () => {
+      const [board, card, width] = await Promise.all([
+        guesser.page.locator('[data-stage-board]').boundingBox(),
+        modal.boundingBox(),
+        guesser.page.evaluate(() => document.documentElement.clientWidth),
+      ])
+      return { left: board!.x, right: width - (card!.x + card!.width), between: card!.x - (board!.x + board!.width) }
+    }
+    // the board slides over while the window opens, so wait for it to settle
+    await expect.poll(async () => Math.abs((await gaps()).left - (await gaps()).right), { timeout: 5_000 }).toBeLessThan(6)
+    const g = await gaps()
+    expect(g.between).toBeGreaterThan(8)
+    expect(g.between).toBeLessThan(60)
+    await guesser.page.screenshot({ path: 'e2e-results/gd-e8-centred.png' })
+    // and the board goes back to where it was when the window closes
+    await answer(guesser, 'definitely not it')
+    await waitPhase(guesser, 'draw')
+    await expect.poll(async () => (await guesser.page.locator('[data-stage-board]').evaluate((el) => getComputedStyle(el).transform)), { timeout: 5_000 }).toMatch(/^(none|matrix\(1, 0, 0, 1, 0, 0\))$/)
+  })
+
   test('GD-H2 only the drawer draws, only while the canvas is open; a wrong answer opens it again; a right one ends the round', async ({ players }) => {
     const { drawer, guesser, word } = await round(players)
     await waitPhase(drawer, 'draw')

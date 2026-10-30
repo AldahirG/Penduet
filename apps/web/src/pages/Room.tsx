@@ -269,7 +269,10 @@ function LiveRoom({ code }: { code: string }) {
                   : undefined
               }
             />
-            <div className={`sheet relative rounded-md ring-4 ring-raised ${CANVAS_BOX_ROOM} ${game?.kind === 'guess' && stageIsOpen(game.phase) ? 'z-[55]' : ''}`}>
+            <div
+              data-stage-board
+              className={`sheet relative rounded-md ring-4 ring-raised ${CANVAS_BOX_ROOM} ${game?.kind === 'guess' ? 'stage-board' : ''} ${game?.kind === 'guess' && stageIsOpen(game.phase) ? 'z-[55]' : ''}`}
+            >
               <DrawingCanvas
                 board={board}
                 authorId={me ?? 'pending'}
